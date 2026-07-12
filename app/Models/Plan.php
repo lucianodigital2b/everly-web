@@ -1,0 +1,74 @@
+<?php
+
+namespace App\Models;
+
+use Carbon\CarbonImmutable;
+use Database\Factories\PlanFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+/**
+ * @property int $id
+ * @property string $name
+ * @property int $price_cents
+ * @property string $currency
+ * @property int|null $max_uploads
+ * @property int|null $max_participants
+ * @property bool $allow_download
+ * @property bool $allow_slideshow
+ * @property bool $white_label
+ * @property int $duration_days
+ * @property CarbonImmutable|null $created_at
+ * @property CarbonImmutable|null $updated_at
+ */
+#[Fillable([
+    'name', 'price_cents', 'currency', 'max_uploads', 'max_participants',
+    'allow_download', 'allow_slideshow', 'white_label', 'duration_days',
+])]
+class Plan extends Model
+{
+    /** @use HasFactory<PlanFactory> */
+    use HasFactory;
+
+    /** @return HasMany<Event, $this> */
+    public function events(): HasMany
+    {
+        return $this->hasMany(Event::class);
+    }
+
+    public function isFree(): bool
+    {
+        return $this->price_cents <= 0;
+    }
+
+    /**
+     * The spec encodes "unlimited" as either null or 0, so normalise both to null.
+     */
+    public function uploadCap(): ?int
+    {
+        return $this->max_uploads > 0 ? $this->max_uploads : null;
+    }
+
+    public function participantCap(): ?int
+    {
+        return $this->max_participants > 0 ? $this->max_participants : null;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'price_cents' => 'integer',
+            'max_uploads' => 'integer',
+            'max_participants' => 'integer',
+            'allow_download' => 'boolean',
+            'allow_slideshow' => 'boolean',
+            'white_label' => 'boolean',
+            'duration_days' => 'integer',
+        ];
+    }
+}

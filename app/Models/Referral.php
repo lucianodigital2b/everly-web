@@ -1,0 +1,48 @@
+<?php
+
+namespace App\Models;
+
+use Carbon\CarbonImmutable;
+use Database\Factories\ReferralFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+/**
+ * @property int $id
+ * @property string $code
+ * @property int|null $user_id
+ * @property array<string, mixed>|null $reward
+ * @property CarbonImmutable|null $redeemed_at
+ * @property CarbonImmutable|null $created_at
+ * @property CarbonImmutable|null $updated_at
+ */
+#[Fillable(['code', 'user_id', 'reward', 'redeemed_at'])]
+class Referral extends Model
+{
+    /** @use HasFactory<ReferralFactory> */
+    use HasFactory;
+
+    /** @return BelongsTo<User, $this> */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function isRedeemed(): bool
+    {
+        return $this->redeemed_at !== null;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'reward' => 'array',
+            'redeemed_at' => 'datetime',
+        ];
+    }
+}
