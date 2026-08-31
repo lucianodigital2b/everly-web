@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
 use App\Models\User;
+use App\Services\AppleTokenClient;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -60,6 +61,30 @@ class AuthController extends Controller
     public function user(Request $request): UserResource
     {
         return new UserResource($request->user());
+    }
+
+    /**
+     * Permanently deletes the account. Required by App Store guideline 5.1.1(v),
+     * which also requires revoking the Sign in with Apple grant — so Apple is
+     * told first, while the refresh token still exists to tell it with.
+     *
+     * Events and their photos disappear with the user via the cascading foreign
+     * keys on `events.user_id` and `event_photos.event_id`.
+     */
+    public function destroy(Request $request, AppleTokenClient $appleTokens): JsonResponse
+    {
+        $user = $request->user();
+
+        if ($user->apple_refresh_token !== null && $user->apple_client_id !== null) {
+            // A failed revoke must not strand the user with an account they
+            // asked to delete; it is logged inside the client and we continue.
+            $appleTokens->revokeRefreshToken($user->apple_refresh_token, $user->apple_client_id);
+        }
+
+        $user->tokens()->delete();
+        $user->delete();
+
+        return response()->json(['message' => 'Account deleted.']);
     }
 
     private function tokenResponse(User $user, Request $request, int $status = 200): JsonResponse

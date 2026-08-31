@@ -44,6 +44,16 @@ class EventStoreRequest extends FormRequest
             'tier' => ['sometimes', 'nullable', 'string', 'max:255'],
             'is_revealed' => ['sometimes', 'boolean'],
             'cover_image_url' => ['sometimes', 'nullable', 'url', 'max:2048'],
+
+            // The client sends the cover as a file part (stock covers ship
+            // inside the app bundle, so it has no URL to hand over). It is
+            // stored on the media disk and becomes `cover_image_url`.
+            'cover_image' => [
+                'sometimes',
+                'file',
+                'mimetypes:image/jpeg,image/png,image/heic,image/heif,image/webp',
+                'max:'.config('everly.media.max_upload_kb'),
+            ],
         ];
     }
 }

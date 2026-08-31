@@ -16,6 +16,14 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Everything reaching this app arrives through a proxy — ngrok in
+        // development, the load balancer in production — and neither has a
+        // fixed IP to name here. Without this, url() builds http:// links on an
+        // https:// request: the invite page's og:image then unfurls over plain
+        // http (Twitter drops it outright) and its <img> is mixed content the
+        // browser blocks, so the cover silently disappears.
+        $middleware->trustProxies(at: '*');
+
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
         $middleware->web(append: [

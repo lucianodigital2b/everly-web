@@ -24,6 +24,7 @@ use Illuminate\Support\Str;
  * @property CarbonImmutable|null $event_date
  * @property int|null $shot_limit
  * @property int|null $participant_limit
+ * @property int|null $base_participant_limit
  * @property string $reveal_time
  * @property CarbonImmutable|null $reveal_at
  * @property string $filter
@@ -114,6 +115,51 @@ class Event extends Model
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
+    }
+
+    /** @return HasMany<GuestPackPurchase, $this> */
+    public function guestPackPurchases(): HasMany
+    {
+        return $this->hasMany(GuestPackPurchase::class);
+    }
+
+    /**
+     * Recompute `participant_limit` from the guest-pack ledger and persist it.
+     *
+     * Capacity is the event's pre-pack base plus every applied pack, or
+     * unlimited (null) if the base was unlimited or any applied pack grants it.
+     * Because it is derived from the ledger rather than mutated in place, a
+     * refund that flips a pack to "reversed" simply drops out of the sum — the
+     * limit reverses correctly, and the baseline floor guarantees it never
+     * falls below the free tier's 5 guests.
+     */
+    public function recomputeParticipantLimit(): void
+    {
+        $applied = $this->guestPackPurchases()
+            ->where('status', GuestPackPurchase::STATUS_APPLIED)
+            ->get();
+
+        if ($applied->contains(fn (GuestPackPurchase $p): bool => $p->grants_unlimited)) {
+            $this->participant_limit = null;
+            $this->save();
+
+            return;
+        }
+
+        // A null captured base means the event was already unlimited; packs
+        // can't add to infinity, so it stays unlimited.
+        if ($this->base_participant_limit === null) {
+            $this->participant_limit = null;
+            $this->save();
+
+            return;
+        }
+
+        $baseline = (int) config('guest_packs.baseline_participants');
+        $total = $this->base_participant_limit + (int) $applied->sum('participants_delta');
+
+        $this->participant_limit = max($baseline, $total);
+        $this->save();
     }
 
     public function isActive(): bool
@@ -213,6 +259,7 @@ class Event extends Model
             'expires_at' => 'datetime',
             'shot_limit' => 'integer',
             'participant_limit' => 'integer',
+            'base_participant_limit' => 'integer',
         ];
     }
 }

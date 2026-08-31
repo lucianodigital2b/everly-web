@@ -5,14 +5,19 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
 use App\Models\User;
+use App\Services\AppleTokenClient;
 use App\Services\SocialTokenVerifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class SocialAuthController extends Controller
 {
-    public function __construct(private readonly SocialTokenVerifier $verifier) {}
+    public function __construct(
+        private readonly SocialTokenVerifier $verifier,
+        private readonly AppleTokenClient $appleTokens,
+    ) {}
 
     public function google(Request $request): JsonResponse
     {
@@ -37,6 +42,7 @@ class SocialAuthController extends Controller
     {
         $data = $request->validate([
             'identity_token' => ['required', 'string'],
+            'authorization_code' => ['sometimes', 'nullable', 'string'],
             'user_identifier' => ['sometimes', 'nullable', 'string'],
             'full_name' => ['sometimes', 'nullable', 'array'],
             'full_name.givenName' => ['sometimes', 'nullable', 'string'],
@@ -45,6 +51,14 @@ class SocialAuthController extends Controller
         ]);
 
         $profile = $this->verifier->verifyApple($data['identity_token']);
+
+        // `user_identifier` is client-supplied, so it is only ever a cross-check
+        // against the signed `sub` — never a lookup key.
+        if (! empty($data['user_identifier']) && $data['user_identifier'] !== $profile['sub']) {
+            throw ValidationException::withMessages([
+                'user_identifier' => ['The Apple user identifier does not match the token.'],
+            ]);
+        }
 
         // Apple sends the name and email only on the first authorization, so we
         // trust the token's `sub` for identity and treat the request body as a
@@ -61,7 +75,35 @@ class SocialAuthController extends Controller
             name: $name !== '' ? $name : null,
         );
 
+        $this->storeAppleRefreshToken($user, $data['authorization_code'] ?? null, $profile['aud']);
+
         return $this->tokenResponse($user);
+    }
+
+    /**
+     * Exchanges the one-time authorization code for a refresh token so account
+     * deletion can revoke the Apple grant later (guideline 5.1.1(v)).
+     *
+     * Deliberately best-effort: a user who cannot sign in is a worse outcome
+     * than one whose deletion has to fall back to a manual revoke, and Apple
+     * rejects a code that was already redeemed — which is exactly what a retried
+     * sign-in sends. An existing token is never overwritten with nothing.
+     */
+    private function storeAppleRefreshToken(User $user, ?string $authorizationCode, string $clientId): void
+    {
+        if ($authorizationCode === null || $authorizationCode === '' || $user->apple_refresh_token !== null) {
+            return;
+        }
+
+        $refreshToken = $this->appleTokens->exchangeAuthorizationCode($authorizationCode, $clientId);
+
+        if ($refreshToken !== null) {
+            $user->apple_refresh_token = $refreshToken;
+            // Revocation later has to name the same client, so the token and the
+            // id it belongs to are stored together or not at all.
+            $user->apple_client_id = $clientId;
+            $user->save();
+        }
     }
 
     /**

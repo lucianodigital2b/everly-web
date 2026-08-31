@@ -15,11 +15,12 @@ use Illuminate\Support\Str;
  * @property int $id
  * @property int $event_id
  * @property string $guest_token
+ * @property string|null $name
  * @property int $upload_count
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
  */
-#[Fillable(['event_id', 'guest_token', 'upload_count'])]
+#[Fillable(['event_id', 'guest_token', 'name', 'upload_count'])]
 class Guest extends Model
 {
     /** @use HasFactory<GuestFactory> */

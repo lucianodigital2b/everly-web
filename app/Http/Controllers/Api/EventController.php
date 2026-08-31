@@ -11,6 +11,7 @@ use App\Http\Resources\PaymentResource;
 use App\Models\Event;
 use App\Models\Plan;
 use App\Services\EventGates;
+use App\Services\MediaStorage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -18,7 +19,10 @@ use Illuminate\Http\Response;
 
 class EventController extends Controller
 {
-    public function __construct(private readonly EventGates $gates) {}
+    public function __construct(
+        private readonly EventGates $gates,
+        private readonly MediaStorage $media,
+    ) {}
 
     public function index(Request $request): AnonymousResourceCollection
     {
@@ -35,7 +39,9 @@ class EventController extends Controller
     {
         $plan = Plan::findOrFail($request->integer('plan_id'));
 
-        $event = new Event($request->safe()->except('plan_id'));
+        // `cover_image` is a file, not a column — it is exchanged for a URL
+        // below, once the event has an id to file it under.
+        $event = new Event($request->safe()->except(['plan_id', 'cover_image']));
         $event->user_id = $request->user()->id;
         $event->plan()->associate($plan);
 
@@ -46,6 +52,11 @@ class EventController extends Controller
         $event->participant_limit ??= $plan->participantCap();
         $event->status = Event::STATUS_PENDING_PAYMENT;
         $event->save();
+
+        if ($request->hasFile('cover_image')) {
+            $event->cover_image_url = $this->media->storeCover($event, $request->file('cover_image'));
+            $event->save();
+        }
 
         // Free plans have nothing to pay for, so they go live immediately.
         if ($plan->isFree()) {
@@ -79,7 +90,14 @@ class EventController extends Controller
     {
         $this->authorizeOwner($request, $event);
 
-        $event->fill($request->safe()->except('plan_id'));
+        $event->fill($request->safe()->except(['plan_id', 'cover_image']));
+
+        // A multipart PATCH doesn't parse in PHP, so the client posts these
+        // with `_method=PATCH` — by the time this runs it is a normal request
+        // with a file on it either way.
+        if ($request->hasFile('cover_image')) {
+            $event->cover_image_url = $this->media->storeCover($event, $request->file('cover_image'));
+        }
 
         // Changing plan re-prices the event; a paid upgrade sends it back
         // through checkout rather than silently granting the new tier.
@@ -121,7 +139,8 @@ class EventController extends Controller
             return response()->json(['photos' => []]);
         }
 
-        $photos = $event->photos()->latest()->get();
+        // `with('guest')` keeps the per-photo credit from becoming an N+1.
+        $photos = $event->photos()->with('guest')->latest()->get();
 
         return response()->json([
             'photos' => EventPhotoResource::collection($photos),

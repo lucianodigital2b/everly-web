@@ -14,7 +14,10 @@
 .DS_Store
 .env
 .env.backup
+.env.bak-*
 .env.production
+# Sign in with Apple signing keys — Apple issues each .p8 once and never again.
+*.p8
 .phpactor.json
 .phpunit.result.cache
 Homestead.json

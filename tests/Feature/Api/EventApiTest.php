@@ -7,12 +7,63 @@ use App\Models\EventPhoto;
 use App\Models\Plan;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Date;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class EventApiTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_a_cover_uploaded_on_create_becomes_the_events_cover_url(): void
+    {
+        config()->set('everly.media.disk', 'r2');
+        Storage::fake('r2', ['url' => 'https://media.everly.test']);
+
+        $user = User::factory()->create();
+        $plan = Plan::factory()->create(['price_cents' => 0]);
+
+        $response = $this->actingAs($user, 'sanctum')->post('/api/events', [
+            'name' => 'Sarah & James',
+            'plan_id' => $plan->id,
+            'cover_image' => UploadedFile::fake()->image('cover.jpg', 2400, 1600),
+        ]);
+
+        $response->assertCreated();
+
+        $url = $response->json('cover_image_url');
+        $this->assertNotNull($url, 'the uploaded cover was dropped');
+        $this->assertStringStartsWith('https://media.everly.test/', $url);
+
+        Storage::disk('r2')->assertExists(
+            str_replace('https://media.everly.test/', '', $url),
+        );
+    }
+
+    public function test_a_cover_can_be_replaced_after_the_fact(): void
+    {
+        config()->set('everly.media.disk', 'r2');
+        Storage::fake('r2', ['url' => 'https://media.everly.test']);
+
+        $user = User::factory()->create();
+        $event = Event::factory()->for($user)->for(Plan::factory())->create([
+            'cover_image_url' => null,
+        ]);
+
+        // A multipart body can't ride on a real PATCH, so the client posts it
+        // with _method=PATCH. Both spellings have to reach the same handler.
+        $response = $this->actingAs($user, 'sanctum')->post("/api/events/{$event->id}", [
+            '_method' => 'PATCH',
+            'name' => 'Renamed',
+            'cover_image' => UploadedFile::fake()->image('new-cover.jpg', 1200, 900),
+        ]);
+
+        $response->assertOk()->assertJsonPath('name', 'Renamed');
+
+        $event->refresh();
+        $this->assertStringStartsWith('https://media.everly.test/', (string) $event->cover_image_url);
+    }
 
     public function test_events_index_returns_a_bare_array_not_a_data_envelope(): void
     {

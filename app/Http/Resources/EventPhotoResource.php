@@ -24,6 +24,9 @@ class EventPhotoResource extends JsonResource
             'duration_seconds' => $this->duration_seconds,
             'width' => $this->width,
             'height' => $this->height,
+            // Who uploaded it. Null when the guest never named themselves —
+            // the gallery then credits the tile to a plain "Guest".
+            'guest_name' => $this->guest?->name,
             'created_at' => EventResource::iso($this->created_at),
         ];
     }

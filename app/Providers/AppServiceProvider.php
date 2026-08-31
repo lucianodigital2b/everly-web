@@ -53,6 +53,10 @@ class AppServiceProvider extends ServiceProvider
     protected function configureRateLimiting(): void
     {
         RateLimiter::for('guest-uploads', fn (Request $request): Limit => Limit::perMinute(30)->by($request->ip()));
+
+        // The RevenueCat webhook is public; cap it per IP to blunt abuse while
+        // staying well above any realistic legitimate delivery rate.
+        RateLimiter::for('revenuecat-webhook', fn (Request $request): Limit => Limit::perMinute(120)->by($request->ip()));
     }
 
     /**

@@ -38,11 +38,33 @@ return [
     // Audience (`aud`) that identity tokens from the mobile app must carry.
     'google' => [
         'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect' => env('GOOGLE_REDIRECT_URI'),
     ],
 
+    // Sign in with Apple. `client_ids` is a comma-separated list because the app
+    // ships three bundle ids (production / .dev / .preview, see the mobile
+    // repo's app.config.js) and each mints identity tokens with its own `aud`.
+    // The first entry is the primary — the one the .p8 key is registered
+    // against, used when calling Apple's token and revoke endpoints.
     'apple' => [
-        // The app's bundle id for Sign in with Apple on iOS.
-        'client_id' => env('APPLE_CLIENT_ID'),
+        'client_ids' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) env('APPLE_CLIENT_ID', ''))
+        ))),
+        // Credentials for the ES256 client secret. Only revocation needs these;
+        // sign-in verifies tokens against Apple's public JWKS and works without.
+        'team_id' => env('APPLE_TEAM_ID'),
+        'key_id' => env('APPLE_KEY_ID'),
+        'private_key' => env('APPLE_PRIVATE_KEY'),
+        'private_key_path' => env('APPLE_PRIVATE_KEY_PATH'),
+    ],
+
+    // RevenueCat sends this exact string in the Authorization header of every
+    // webhook (configured on the RevenueCat webhook screen). The endpoint
+    // fails closed when it's unset, so no unauthenticated payload is processed.
+    'revenuecat' => [
+        'webhook_auth' => env('REVENUECAT_WEBHOOK_AUTH'),
     ],
 
 ];

@@ -124,6 +124,29 @@ Represents an anonymous uploader tied to one event via the QR token.
 | invoice_url  | string?   | PIX checkout / invoice URL              |
 | created_at   | timestamp |                                         |
 
+### `guest_pack_purchases`
+Audit log **and** ledger for guest-pack capacity. `participant_limit` is
+recomputed from the `applied` rows (`base + Σ deltas`, or unlimited), so refunds
+reverse cleanly.
+| field              | type      | notes                                             |
+|--------------------|-----------|---------------------------------------------------|
+| id                 | bigint PK |                                                   |
+| event_id           | FK events?| nullable; null when the purchase can't be matched |
+| user_id            | FK users? | best-effort from RevenueCat `app_user_id`         |
+| rc_event_id        | string?   | RevenueCat `event.id`; unique (webhook dedup)     |
+| transaction_id     | string?   | store transaction; links a refund to its purchase |
+| type               | string    | `NON_RENEWING_PURCHASE` \| `REFUND` \| …           |
+| product_id         | string?   | purchased SKU                                     |
+| participants_delta | int?      | credited participants (negative on reversal)      |
+| grants_unlimited   | bool      | pack removed the cap                              |
+| status             | string    | `applied`/`reversed`/`reversal`/`ignored`/`unmatched` |
+| source             | string    | `webhook` \| `sync`                               |
+| raw                | json      | full payload                                      |
+| created_at         | timestamp |                                                   |
+
+> `events` also gains `base_participant_limit` — the pre-pack capacity captured
+> the first time a pack is applied, so refunds have a floor to reverse back to.
+
 ### `referrals` (optional)
 | field      | type   | notes                          |
 |------------|--------|--------------------------------|
@@ -145,11 +168,61 @@ Represents an anonymous uploader tied to one event via the QR token.
 | POST   | `/auth/login`           | —    | `{email,password,device_name?}` → `{user, token}` |
 | POST   | `/auth/logout`          | ✔    | — → `{message}` |
 | GET    | `/auth/user`            | ✔    | — → `User` |
+| DELETE | `/auth/user`            | ✔    | — → `{message}` |
 | POST   | `/auth/google/callback` | —    | `{id_token, access_token?}` → `{user, token}` |
-| POST   | `/auth/apple/callback`  | —    | `{identity_token, user_identifier, full_name, email}` → `{user, token}` |
+| POST   | `/auth/apple/callback`  | —    | `{identity_token, authorization_code?, user_identifier?, full_name?, email?}` → `{user, token}` |
 
 `User` = `{ id, name, email, created_at, updated_at }`.
 `full_name` (Apple) = `{ givenName?, familyName? } | null`.
+
+#### Sign in with Apple
+
+Implemented by `SocialAuthController@apple` + `SocialTokenVerifier` (identity
+token) and `AppleTokenClient` (Apple's token/revoke endpoints).
+
+- **`identity_token` is the only credential.** Verified against Apple's JWKS
+  (cached an hour), with `iss`, `exp` and `aud` all checked. Identity comes from
+  the signed `sub`; `user_identifier` is client-supplied and is only cross-checked
+  against it — a mismatch is a 422.
+- **`APPLE_CLIENT_ID` is a comma-separated list.** The app ships three bundle ids
+  (`com.get.everly`, `.dev`, `.preview`), each minting tokens with its own `aud`.
+  The first entry is the primary: the one the .p8 key is registered against.
+- **`full_name` / `email` arrive only on the first authorization.** Later sign-ins
+  send nulls, and the app replays its cached copy after a failed attempt, so
+  repeats are idempotent. A stored name is never overwritten with null. Apple's
+  private relay may withhold the email entirely, in which case the account gets a
+  unique non-routable placeholder.
+- **`authorization_code` buys the ability to revoke.** It is exchanged once for a
+  refresh token (`users.apple_refresh_token`, encrypted at rest, never fillable,
+  never serialized). The exchange is best-effort: Apple rejects an already-redeemed
+  code, and a login must never fail over it.
+- **The exchange and the revoke name the bundle id the credential came from**,
+  taken from the verified `aud` and stored in `users.apple_client_id`. Apple
+  refuses a code or token redeemed under a different client, so a `.dev` sign-in
+  cannot be exchanged as production. This means **the .p8 key must be authorised
+  for all three App IDs** — i.e. they belong to the same Sign in with Apple group
+  as the key's primary App ID.
+- **`DELETE /auth/user` revokes before deleting.** App Store guideline 5.1.1(v)
+  requires it of any app offering Sign in with Apple. A failed revoke is logged
+  but does not block the deletion. Events and photos cascade via their foreign
+  keys.
+
+Revocation needs `APPLE_TEAM_ID`, `APPLE_KEY_ID` and the .p8 key
+(`APPLE_PRIVATE_KEY_PATH` or inline `APPLE_PRIVATE_KEY`); `AppleTokenClient`
+no-ops without them, so **sign-in works with no Apple key configured — only
+revocation is lost.**
+
+`php artisan apple:check` reports the configuration: values present, .p8 loads,
+ES256 signing works, key id matches the file name.
+
+**It cannot tell you whether the key is authorised for these bundle ids**, and
+nothing else can either. Apple validates the `code`/`token` *before* the client
+credentials, so both `/auth/token` and `/auth/revoke` answer `invalid_grant` to
+everything — a fabricated team id, key id and bundle id included (measured, not
+assumed). Only a real `authorization_code` exercises the client secret, so the
+first genuine test is a sign-in on a device followed by an account deletion;
+a wrong key shows up in the log as `Apple token revocation failed` carrying
+`invalid_client`.
 
 ### 2.2 Plans
 
@@ -267,8 +340,9 @@ create).
 
 | Method | Path              | Auth | Headers | Body → Response |
 |--------|-------------------|------|---------|-----------------|
-| GET    | `/upload/{token}` | —    | —       | — → `UploadToken` |
-| POST   | `/upload/{token}` | —    | `X-Guest-Token?` (multipart) | file field `photo` → `{ guest_token }` |
+| GET    | `/upload/{token}` | —    | `X-Guest-Token?` | — → `UploadToken` |
+| POST   | `/upload/{token}` | —    | `X-Guest-Token?` (multipart) | file field `photo` → `{ guest_token, remaining }` |
+| GET    | `/upload/{token}/photos` | — | `X-Guest-Token?` | — → `{ photos[], revealed }` |
 
 `{token}` is the event's `qr_code_token`.
 
@@ -280,10 +354,54 @@ create).
     "name": "Sarah & James",
     "title": "Sarah & James",
     "cover_image_url": "https://.../cover.jpg",
-    "canUpload": true
+    "canUpload": true,
+    "shotLimit": 7,
+    "shotsPerGuest": 10
   }
 }
 ```
+
+`shotLimit` is what this guest **may still upload**, `shotsPerGuest` the event's
+allowance — together they render "7 of 10 left". Both are `null` when the event
+sets no per-guest limit.
+
+**`X-Guest-Token` is optional on the GET and only affects `shotLimit`.** Sent, the
+remainder is counted against that guest; omitted (or unrecognised), the response
+reports the full allowance, because a guest with no token has uploaded nothing.
+The header is never used to *create* a guest here — a read must not consume a
+participant slot.
+
+`POST` returns `remaining` alongside `guest_token` on 201, so a client can keep a
+"photos left" counter honest without a second request.
+
+> The limits themselves are enforced server-side regardless: `POST` rejects with
+> 422 once `Guest::hasReachedShotLimit()` is true, when the event has stopped
+> accepting uploads, or when `participant_limit` is full. These fields exist so a
+> client can *say so first*, not so it can be trusted to.
+
+**`GET /upload/{token}/photos`** — the requesting guest's **own** photos:
+
+```json
+{
+  "photos": [
+    { "id": 27, "url": "https://.../x.jpg", "thumbnail_url": "https://.../x_thumb.jpg", "media_type": "image" }
+  ],
+  "revealed": false
+}
+```
+
+Without a recognised `X-Guest-Token` it returns an empty list, not an error — a
+guest who has uploaded nothing has nothing here. It exists because the client
+keeps only an opaque token, so after a reload the server is the only thing that
+knows what this guest contributed.
+
+> 🔒 **The `where('guest_id', …)` in `GuestUploadController::mine()` is the whole
+> safety property of this route, and it is not conditional on anything.** No
+> flag, reveal state or query parameter widens it to the rest of the album.
+> `revealed` is reported so a client can caption the list ("only you can see
+> these until the reveal") — it never gates the list, because the list is the
+> guest's own either way. A guest-facing view of *everyone's* photos would be a
+> new route with its own reasoning, never a loosened `where` on this one.
 
 **Upload request:** `multipart/form-data` with a **`photo`** file part. On first upload
 the server issues a `guest_token`; the client stores it and resends it as the
@@ -293,11 +411,87 @@ the server issues a `guest_token`; the client stores it and resends it as the
 > ⚠️ The client currently appends the file under the field name **`photo`**
 > (`app/upload/[token].tsx`). Match that field name, or tell me to change it.
 
+### 2.5b Guest web flow  (HTML, not API)
+
+| Method | Path                      | Auth | Response |
+|--------|---------------------------|------|----------|
+| GET    | `/upload/{token}`         | —    | `text/html` — the invitation |
+| GET    | `/upload/{token}/album`   | —    | `text/html` — the album |
+
+Note the missing `/api` prefix: these are **web** routes (`routes/web.php` →
+`JoinController`, views `join.blade.php` and `join-album.blade.php`), sharing
+the path shape of the API endpoint above so the deep link, the QR and the
+shared link all read as one address.
+
+**A guest can complete the whole flow in a browser — no app required.** The
+invitation collects a name; the album uploads photos straight to `POST
+/api/upload/{token}` (same origin, so no CORS and no CSRF token — the `api`
+group is stateless). The guest identity is the `X-Guest-Token` the API issues on
+the first upload, kept in `localStorage` under `everly.guest.<qr_code_token>`
+along with the name; losing it restarts the guest's shot allowance and splits
+their photos between two anonymous guests, so it is written before navigating.
+Reaching `/album` with no stored name redirects back to the invitation.
+
+Same credential as 2.5: the `qr_code_token` in the URL is the whole
+authorisation, and the pages show only what its holder is already entitled to —
+event name, cover, host's name, photo count, guest count, and whether it still
+takes uploads. **Never anyone's photos.** The album grid shows only the guest's
+own uploads from the current session, as local object URLs; there is no endpoint
+that would return another guest's, and there should not be one. The reveal is
+the product.
+
+Server-rendered rather than fetched client-side, because the invite is pasted
+into WhatsApp and iMessage far more than it is typed, and those unfurlers don't
+run JavaScript. An unknown token gets Laravel's default 404.
+
+Config lives under `everly.invite` (`config/everly.php`): `app_store_url` (env
+`INVITE_APP_STORE_URL`) and the `fallback_cover` shown when the event has none.
+
+> ⚠️ `throttle:guest-uploads` is 30/min **keyed by IP**. A venue is one wifi NAT,
+> so with web uploads the limit is spent by the room, not the person. Keying by
+> `X-Guest-Token` when present (falling back to IP for the first upload) is the
+> fix; it affects the app's uploads too, so it is left as a decision.
+
 ### 2.6 Referral
 
 | Method | Path                 | Auth | Body → Response |
 |--------|----------------------|------|-----------------|
 | POST   | `/referrals/redeem`  | ✔    | `{ code }` → `{ success, reward }` |
+
+### 2.7 Guest packs (extra participant capacity)
+
+Guests packs are one-time in-app purchases (via **RevenueCat**) that raise an
+event's `participant_limit`. Capacity is decoupled from `plans`: how much a pack
+is worth lives entirely in `config/guest_packs.php` (product identifier →
+participants, `null` = unlimited). Every event keeps a **baseline of 5** guests
+that a refund can never drop it below.
+
+| Method | Path                              | Auth | Notes |
+|--------|-----------------------------------|------|-------|
+| POST   | `/webhooks/revenuecat`            | secret | RevenueCat webhook (below) |
+| POST   | `/events/{id}/guest-packs/sync`   | ✔    | Optional instant credit; off unless `GUEST_PACK_SYNC_ENABLED=true` |
+
+**Webhook auth.** No Sanctum token — RevenueCat sends the shared secret
+`REVENUECAT_WEBHOOK_AUTH` in the `Authorization` header. The endpoint fails
+closed (401) when the secret is unset or mismatched.
+
+**Which event?** A purchase must say which event it tops up. The client sets the
+RevenueCat **subscriber attribute** `everly_event_id` to the target event id
+before calling `purchase()`; the webhook reads it from
+`event.subscriber_attributes.everly_event_id.value`.
+
+**Handled event types.** `NON_RENEWING_PURCHASE` credits the mapped participants
+(additive; `null` = unlimited). `REFUND` reverses the matching purchase (found by
+`transaction_id`) and recomputes capacity, floored at the baseline 5. Any other
+type is recorded and ignored.
+
+**Idempotency.** A purchase is credited at most once regardless of path: webhook
+retries are deduped by RevenueCat's `event.id`, and a `sync` call plus a later
+webhook for the same `transaction_id` credit only once. Every delivery is written
+to `guest_pack_purchases` (audit) with a `status` explaining what happened.
+
+**`POST /events/{id}/guest-packs/sync`** body `{ product_id, transaction_id }` →
+`{ status, event }` (the updated `Event`). `product_id` must be a known pack SKU.
 
 ---
 

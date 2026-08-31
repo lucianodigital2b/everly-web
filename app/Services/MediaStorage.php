@@ -57,6 +57,37 @@ class MediaStorage
     }
 
     /**
+     * Store an event cover and return the absolute URL to put on the event.
+     *
+     * Covers are the one image the *owner* uploads rather than a guest, and
+     * they are only ever displayed as a card or a full-bleed backdrop — so
+     * they are scaled down on the way in. An unreadable file is still stored
+     * as-is: a cover that looks wrong beats a save that fails.
+     */
+    public function storeCover(Event $event, UploadedFile $file): string
+    {
+        $disk = Storage::disk(config('everly.media.disk'));
+        $path = 'events/'.$event->id.'/covers/'.Str::uuid().'.jpg';
+
+        try {
+            $image = $this->images->read($file->getRealPath())
+                ->scaleDown(
+                    width: config('everly.media.cover_size'),
+                    height: config('everly.media.cover_size'),
+                )
+                ->toJpeg(quality: 85);
+
+            $disk->put($path, (string) $image);
+        } catch (Throwable) {
+            $extension = Str::lower($file->getClientOriginalExtension() ?: 'jpg');
+            $path = 'events/'.$event->id.'/covers/'.Str::uuid().'.'.$extension;
+            $disk->put($path, $file->getContent());
+        }
+
+        return $disk->url($path);
+    }
+
+    /**
      * @param  Filesystem  $disk
      * @return array{0: int|null, 1: int|null, 2: string|null}
      */

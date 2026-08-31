@@ -136,6 +136,60 @@ class GuestUploadTest extends TestCase
         $this->assertSame(2, Guest::whereGuestToken($token)->sole()->upload_count);
     }
 
+    public function test_the_guest_name_is_stored_and_the_latest_non_empty_one_wins(): void
+    {
+        $event = $this->activeEvent(['shot_limit' => 5]);
+
+        $token = $this->postJson("/api/upload/{$event->qr_code_token}", [
+            'photo' => $this->photo(),
+            'guest_name' => '  Marina  ',
+        ])->json('guest_token');
+
+        $guest = Guest::whereGuestToken($token)->sole();
+        $this->assertSame('Marina', $guest->name);
+
+        // A later upload with no name must not wipe the one already given.
+        $this->postJson(
+            "/api/upload/{$event->qr_code_token}",
+            ['photo' => $this->photo()],
+            $this->asGuest($token),
+        )->assertCreated();
+
+        $this->assertSame('Marina', $guest->refresh()->name);
+
+        // ...but a guest who names themselves after the fact is renamed.
+        $this->postJson(
+            "/api/upload/{$event->qr_code_token}",
+            ['photo' => $this->photo(), 'guest_name' => 'Marina Costa'],
+            $this->asGuest($token),
+        )->assertCreated();
+
+        $this->assertSame('Marina Costa', $guest->refresh()->name);
+    }
+
+    public function test_the_gallery_credits_each_photo_to_its_uploader(): void
+    {
+        $event = $this->activeEvent(['reveal_time' => Event::REVEAL_INSTANT]);
+
+        $this->postJson("/api/upload/{$event->qr_code_token}", [
+            'photo' => $this->photo(),
+            'guest_name' => 'Marina',
+        ])->assertCreated();
+
+        $this->postJson("/api/upload/{$event->qr_code_token}", [
+            'photo' => $this->photo(),
+        ])->assertCreated();
+
+        $names = $this->actingAs($event->user)
+            ->getJson("/api/events/{$event->id}/photos")
+            ->assertOk()
+            ->json('photos.*.guest_name');
+
+        // Newest first, so the unnamed guest leads. Null is the client's cue to
+        // print a plain "Guest".
+        $this->assertSame([null, 'Marina'], $names);
+    }
+
     public function test_shot_limit_is_enforced_per_guest(): void
     {
         $event = $this->activeEvent(['shot_limit' => 1]);
