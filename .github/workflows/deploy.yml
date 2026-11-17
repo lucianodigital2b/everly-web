@@ -1,0 +1,59 @@
+name: deploy
+
+# Depois que o workflow "tests" passa na main, entra por SSH na VPS e roda
+# /home/everlyapp/deploy.sh (cópia em deploy/deploy.sh). A chave só pode rodar esse script.
+#
+# Secrets do environment `prod` (Settings → Environments → prod):
+#   DEPLOY_SSH_KEY   chave PRIVADA dedicada (github-actions@everly); a pública está
+#                    no ~/.ssh/authorized_keys do user everlyapp, presa ao deploy.sh
+#   DEPLOY_HOST      IP da VPS
+
+on:
+  workflow_run:
+    workflows: [tests]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    environment: prod
+    env:
+      SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+    steps:
+      - name: Setup SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+        run: |
+          [ -n "$DEPLOY_SSH_KEY" ] || { echo "::error::secret DEPLOY_SSH_KEY vazio ou ausente"; exit 1; }
+          [ -n "$DEPLOY_HOST" ] || { echo "::error::secret DEPLOY_HOST vazio ou ausente"; exit 1; }
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" | tr -d '\r' > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keygen -y -f ~/.ssh/deploy_key > /dev/null || { echo "::error::DEPLOY_SSH_KEY não é uma chave privada válida"; exit 1; }
+          ssh-keyscan -T 15 -H "$(echo "$DEPLOY_HOST" | tr -d '[:space:]')" >> ~/.ssh/known_hosts 2>/dev/null || true
+          [ -s ~/.ssh/known_hosts ] || { echo "::error::ssh-keyscan não alcançou o DEPLOY_HOST"; exit 1; }
+
+      - name: Deploy
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+        run: ssh -i ~/.ssh/deploy_key "everlyapp@$(echo "$DEPLOY_HOST" | tr -d '[:space:]')" "$SHA"
+
+      - name: Confere a versão no ar
+        run: |
+          sleep 3
+          LIVE=$(curl -fsS "https://everly.koffeecode.com/REVISION" | tr -d '[:space:]')
+          echo "no ar: $LIVE | esperado: $SHA"
+          test "$LIVE" = "$SHA"
+
+      - name: Limpa a chave
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
