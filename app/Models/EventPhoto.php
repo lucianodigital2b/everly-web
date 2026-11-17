@@ -36,6 +36,16 @@ class EventPhoto extends Model
 
     public const TYPE_VIDEO = 'video';
 
+    protected static function booted(): void
+    {
+        // The original and its thumbnail go with the row.
+        static::deleted(function (EventPhoto $photo): void {
+            Storage::disk(config('everly.media.disk'))->delete(
+                array_values(array_filter([$photo->path, $photo->thumbnail_path])),
+            );
+        });
+    }
+
     /** @return BelongsTo<Event, $this> */
     public function event(): BelongsTo
     {

@@ -51,9 +51,12 @@ class GuestPackService
             'raw' => $payload,
         ];
 
-        return match ($type) {
-            GuestPackPurchase::TYPE_PURCHASE => $this->creditPurchase($targetEvent, $type, $context),
-            GuestPackPurchase::TYPE_REFUND => $this->reverseRefund($type, $context),
+        $isRefund = $type === GuestPackPurchase::TYPE_CANCELLATION
+            && ($event['cancel_reason'] ?? null) === GuestPackPurchase::CANCEL_REASON_REFUND;
+
+        return match (true) {
+            $type === GuestPackPurchase::TYPE_PURCHASE => $this->creditPurchase($targetEvent, $type, $context),
+            $isRefund => $this->reverseRefund($type, $context),
             // Every webhook is recorded; types we don't act on are audited as ignored.
             default => $this->record($context, $type, GuestPackPurchase::STATUS_IGNORED, $targetEvent?->id),
         };
@@ -105,7 +108,9 @@ class GuestPackService
             return $this->record($context, $type, GuestPackPurchase::STATUS_IGNORED, $event->id);
         }
 
-        $credit = $packs[$productId]; // int, or null for unlimited
+        // The tier total the pack unlocks, or null for unlimited. It is stored in
+        // `participants_delta`, a name left over from when packs were top-ups.
+        $credit = $packs[$productId];
 
         return DB::transaction(function () use ($event, $type, $context, $credit): GuestPackPurchase {
             $this->captureBaseIfFirst($event);

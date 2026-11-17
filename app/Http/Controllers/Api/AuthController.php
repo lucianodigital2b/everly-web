@@ -68,8 +68,9 @@ class AuthController extends Controller
      * which also requires revoking the Sign in with Apple grant — so Apple is
      * told first, while the refresh token still exists to tell it with.
      *
-     * Events and their photos disappear with the user via the cascading foreign
-     * keys on `events.user_id` and `event_photos.event_id`.
+     * Events are deleted one by one (not left to the cascading foreign key) so
+     * each one's `deleted` hook removes its photo files from the media disk;
+     * the photo rows still go with `event_photos.event_id`.
      */
     public function destroy(Request $request, AppleTokenClient $appleTokens): JsonResponse
     {
@@ -81,6 +82,7 @@ class AuthController extends Controller
             $appleTokens->revokeRefreshToken($user->apple_refresh_token, $user->apple_client_id);
         }
 
+        $user->events()->get()->each->delete();
         $user->tokens()->delete();
         $user->delete();
 

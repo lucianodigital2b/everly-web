@@ -14,6 +14,10 @@ Route::middleware('throttle:guest-uploads')->group(function (): void {
     Route::get('upload/{token}/album', [JoinController::class, 'album'])->name('join.album');
 });
 
+// Public pages the App Store listing links to (privacy policy and support URL).
+Route::view('privacy', 'legal.privacy')->name('privacy');
+Route::view('support', 'legal.support')->name('support');
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('dashboard', 'dashboard')->name('dashboard');
 });

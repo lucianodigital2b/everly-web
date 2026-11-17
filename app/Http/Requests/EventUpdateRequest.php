@@ -18,7 +18,7 @@ class EventUpdateRequest extends EventStoreRequest
     {
         return array_merge(parent::rules(), [
             'name' => ['sometimes', 'string', 'max:255'],
-            'plan_id' => ['sometimes', 'integer', 'exists:plans,id'],
+            'plan_id' => ['sometimes', 'nullable', 'integer'],
             'public' => ['sometimes', 'boolean'],
 
             // The parent makes this conditionally required by inspecting the

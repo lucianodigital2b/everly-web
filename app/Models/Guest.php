@@ -17,6 +17,7 @@ use Illuminate\Support\Str;
  * @property string $guest_token
  * @property string|null $name
  * @property int $upload_count
+ * @property CarbonImmutable|null $blocked_at
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
  */
@@ -54,6 +55,11 @@ class Guest extends Model
         return $this->hasMany(EventPhoto::class);
     }
 
+    public function isBlocked(): bool
+    {
+        return $this->blocked_at !== null;
+    }
+
     /**
      * `shot_limit` is per guest, not per event.
      */
@@ -71,6 +77,7 @@ class Guest extends Model
     {
         return [
             'upload_count' => 'integer',
+            'blocked_at' => 'datetime',
         ];
     }
 }

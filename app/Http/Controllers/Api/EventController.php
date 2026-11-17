@@ -9,6 +9,7 @@ use App\Http\Resources\EventPhotoResource;
 use App\Http\Resources\EventResource;
 use App\Http\Resources\PaymentResource;
 use App\Models\Event;
+use App\Models\EventPhoto;
 use App\Models\Plan;
 use App\Services\EventGates;
 use App\Services\MediaStorage;
@@ -16,6 +17,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Date;
 
 class EventController extends Controller
 {
@@ -37,7 +39,12 @@ class EventController extends Controller
 
     public function store(EventStoreRequest $request): JsonResponse
     {
-        $plan = Plan::findOrFail($request->integer('plan_id'));
+        // The app still sends the guest tier the host picked as `plan_id`, but
+        // that tier is bought afterwards as a guest pack and credited by the
+        // RevenueCat webhook. So every event starts on the base plan with the
+        // free guest allowance and goes live straight away; a paid tier the
+        // host backs out of costs nothing and changes nothing.
+        $plan = Plan::base();
 
         // `cover_image` is a file, not a column — it is exchanged for a URL
         // below, once the event has an id to file it under.
@@ -45,12 +52,8 @@ class EventController extends Controller
         $event->user_id = $request->user()->id;
         $event->plan()->associate($plan);
 
-        // Defaults the client may omit: mirror the plan's label and cap guests
-        // at the tier's participant allowance unless it asked for something
-        // tighter.
         $event->tier ??= $plan->name;
-        $event->participant_limit ??= $plan->participantCap();
-        $event->status = Event::STATUS_PENDING_PAYMENT;
+        $event->participant_limit = (int) config('guest_packs.baseline_participants');
         $event->save();
 
         if ($request->hasFile('cover_image')) {
@@ -58,10 +61,7 @@ class EventController extends Controller
             $event->save();
         }
 
-        // Free plans have nothing to pay for, so they go live immediately.
-        if ($plan->isFree()) {
-            $event->activate();
-        }
+        $event->activate();
 
         return (new EventResource($event->load('plan')))
             ->response()
@@ -99,17 +99,9 @@ class EventController extends Controller
             $event->cover_image_url = $this->media->storeCover($event, $request->file('cover_image'));
         }
 
-        // Changing plan re-prices the event; a paid upgrade sends it back
-        // through checkout rather than silently granting the new tier.
-        if ($request->filled('plan_id') && $request->integer('plan_id') !== $event->plan_id) {
-            $plan = Plan::findOrFail($request->integer('plan_id'));
-            $event->plan()->associate($plan);
-            $event->tier = $plan->name;
-
-            if (! $plan->isFree() && ! $event->isActive()) {
-                $event->status = Event::STATUS_PENDING_PAYMENT;
-            }
-        }
+        // `plan_id` is accepted and ignored, as on create: the app sends it when
+        // a host backs out of a guest pack, and capacity only ever changes
+        // through a verified purchase.
 
         $event->syncRevealState();
         $event->save();
@@ -145,6 +137,32 @@ class EventController extends Controller
         return response()->json([
             'photos' => EventPhotoResource::collection($photos),
         ]);
+    }
+
+    /**
+     * The host takes a photo out of their event. With `block_guest`, every
+     * photo from the same guest goes with it and that guest can't upload to
+     * the event again. This is the moderation App Review asks of an app whose
+     * users see each other's photos (guideline 1.2).
+     */
+    public function destroyPhoto(Request $request, Event $event, EventPhoto $photo): Response
+    {
+        $this->authorizeOwner($request, $event);
+        abort_unless($photo->event_id === $event->id, 404);
+
+        $guest = $photo->guest;
+
+        if ($guest !== null && $request->boolean('block_guest')) {
+            $guest->blocked_at ??= Date::now();
+            $guest->save();
+
+            // One by one rather than a bulk delete, so each photo's files go too.
+            $guest->photos()->get()->each->delete();
+        } else {
+            $photo->delete();
+        }
+
+        return response()->noContent();
     }
 
     /**

@@ -44,6 +44,16 @@ class Plan extends Model
     }
 
     /**
+     * The plan every event is created on. Guest capacity is the only thing the
+     * app sells (as RevenueCat guest packs), so the paid plans are left over
+     * from the PIX checkout and no new event is put on one.
+     */
+    public static function base(): self
+    {
+        return self::where('price_cents', '<=', 0)->orderBy('id')->firstOrFail();
+    }
+
+    /**
      * The spec encodes "unlimited" as either null or 0, so normalise both to null.
      */
     public function uploadCap(): ?int

@@ -20,21 +20,27 @@ return [
     | Pack catalogue  (the "§2 map")
     |--------------------------------------------------------------------------
     |
-    | RevenueCat product identifier => participants that pack grants.
-    | `null` means unlimited (mirrors how the app encodes ∞ as a null
-    | participant_limit). Capacity is intentionally decoupled from `plans`:
-    | this map is the only source of truth for how much a purchase is worth.
+    | Store product identifier => the event's total guest capacity once that
+    | pack is bought. Packs are tiers, not top-ups: buying "25 Guests" makes
+    | the event hold 25, whatever it held before (see
+    | Event::recomputeParticipantLimit). `null` means unlimited (mirrors how
+    | the app encodes ∞ as a null participant_limit). Capacity is intentionally
+    | decoupled from `plans`: this map is the only source of truth for how much
+    | a purchase is worth.
     |
-    | ⚠️ Replace these placeholder SKUs with the real product identifiers you
-    |    registered in RevenueCat / App Store Connect / Play Console. The keys
-    |    must match the `product_id` RevenueCat sends on the webhook exactly.
+    | The keys are the App Store product ids, which is what RevenueCat sends as
+    | `product_id` on the webhook. They match the app's GUEST_TIERS table and
+    | the packages in RevenueCat's default offering.
     |
     */
 
     'packs' => [
-        'everly_guest_pack_intimate' => 30,
-        'everly_guest_pack_celebration' => 100,
-        'everly_guest_pack_grand' => null, // unlimited
+        'com.get.everly.guests.10' => 10,
+        'com.get.everly.guests.25' => 25,
+        'com.get.everly.guests.50' => 50,
+        'com.get.everly.guests.100' => 100,
+        'com.get.everly.guests.150' => 150,
+        'com.get.everly.guests.unlimited' => null,
     ],
 
     /*

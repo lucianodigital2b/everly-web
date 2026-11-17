@@ -42,7 +42,12 @@ class GuestPackPurchase extends Model
     // RevenueCat event types we act on.
     public const TYPE_PURCHASE = 'NON_RENEWING_PURCHASE';
 
-    public const TYPE_REFUND = 'REFUND';
+    // RevenueCat has no REFUND event: a refunded purchase arrives as a
+    // CANCELLATION whose cancel_reason is CUSTOMER_SUPPORT (Apple support
+    // granted the refund). Other cancel reasons don't apply to a consumable.
+    public const TYPE_CANCELLATION = 'CANCELLATION';
+
+    public const CANCEL_REASON_REFUND = 'CUSTOMER_SUPPORT';
 
     // Row lifecycle.
     /** A purchase currently crediting capacity. */

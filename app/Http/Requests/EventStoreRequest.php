@@ -15,14 +15,18 @@ class EventStoreRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'plan_id' => ['required', 'integer', 'exists:plans,id'],
+            // The guest tier the host picked. Intent only: every event starts
+            // on the base plan (see EventController::store), so an id that no
+            // longer names a plan is fine.
+            'plan_id' => ['sometimes', 'nullable', 'integer'],
 
             'title' => ['sometimes', 'nullable', 'string', 'max:255'],
             'event_date' => ['sometimes', 'nullable', 'date'],
             'expires_at' => ['sometimes', 'nullable', 'date'],
 
             'shot_limit' => ['sometimes', 'nullable', 'integer', 'min:1'],
-            'participant_limit' => ['sometimes', 'nullable', 'integer', 'min:1'],
+            // No `participant_limit`: it is what a guest pack pays for, so only
+            // the server sets it — the baseline on create, then the webhook.
 
             'reveal_time' => ['sometimes', 'nullable', Rule::in([
                 Event::REVEAL_INSTANT,

@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Date;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
@@ -76,6 +77,13 @@ class Event extends Model
         static::creating(function (Event $event): void {
             $event->qr_code_token ??= self::newQrToken();
         });
+
+        // The rows go with the cascading foreign keys, but the files don't:
+        // every original, thumbnail and cover lives under events/{id}/ on the
+        // media disk, so the folder is removed with the event.
+        static::deleted(function (Event $event): void {
+            Storage::disk(config('everly.media.disk'))->deleteDirectory('events/'.$event->id);
+        });
     }
 
     public static function newQrToken(): string
@@ -126,12 +134,14 @@ class Event extends Model
     /**
      * Recompute `participant_limit` from the guest-pack ledger and persist it.
      *
-     * Capacity is the event's pre-pack base plus every applied pack, or
-     * unlimited (null) if the base was unlimited or any applied pack grants it.
-     * Because it is derived from the ledger rather than mutated in place, a
-     * refund that flips a pack to "reversed" simply drops out of the sum — the
-     * limit reverses correctly, and the baseline floor guarantees it never
-     * falls below the free tier's 5 guests.
+     * A pack is a tier, not a top-up: "25 Guests" means the event holds 25 in
+     * all. So capacity is the biggest applied pack (or the event's pre-pack
+     * base, if that was bigger), and unlimited (null) if the base was unlimited
+     * or any applied pack grants it. Buying a bigger tier upgrades; a smaller
+     * one never downgrades. Because it is derived from the ledger rather than
+     * mutated in place, a refund that flips a pack to "reversed" simply drops
+     * out — the limit falls back to the next tier down, and the baseline floor
+     * guarantees it never goes below the free tier's 5 guests.
      */
     public function recomputeParticipantLimit(): void
     {
@@ -156,9 +166,9 @@ class Event extends Model
         }
 
         $baseline = (int) config('guest_packs.baseline_participants');
-        $total = $this->base_participant_limit + (int) $applied->sum('participants_delta');
+        $highestTier = (int) $applied->max('participants_delta');
 
-        $this->participant_limit = max($baseline, $total);
+        $this->participant_limit = max($baseline, $this->base_participant_limit, $highestTier);
         $this->save();
     }
 
@@ -173,9 +183,9 @@ class Event extends Model
     }
 
     /**
-     * Flip the event live. Called when a free plan is chosen at creation time,
-     * or when a PIX payment settles. `expires_at` is only derived from the plan
-     * when the client didn't pin an explicit end date on the event.
+     * Flip the event live. Called for every event at creation time, and by the
+     * legacy PIX checkout when a payment settles. `expires_at` is only derived
+     * from the plan when the client didn't pin an explicit end date on the event.
      */
     public function activate(?CarbonImmutable $at = null): void
     {

@@ -4,6 +4,7 @@ namespace Tests\Feature\Api;
 
 use App\Models\Event;
 use App\Models\EventPhoto;
+use App\Models\Guest;
 use App\Models\Plan;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -107,7 +108,7 @@ class EventApiTest extends TestCase
         $response->assertCreated()
             ->assertJsonPath('status', Event::STATUS_ACTIVE)
             ->assertJsonPath('is_revealed', true)
-            // Defaults derived from the plan.
+            // Defaults derived from the base plan.
             ->assertJsonPath('tier', 'Free')
             ->assertJsonPath('participant_limit', 5)
             // Booleans, never null — the client's types depend on it.
@@ -118,26 +119,50 @@ class EventApiTest extends TestCase
         $this->assertNotEmpty($response->json('qr_code_token'));
     }
 
-    public function test_a_paid_plan_event_is_created_pending_payment(): void
+    public function test_an_event_picked_on_a_paid_tier_still_goes_live_with_the_free_allowance(): void
     {
         $user = User::factory()->create();
-        $plan = Plan::factory()->create(['price_cents' => 4900]);
+        $free = Plan::factory()->free()->create();
+        $paid = Plan::factory()->create(['price_cents' => 4900]);
 
-        $this->actingAs($user, 'sanctum')
-            ->postJson('/api/events', ['name' => 'Gala', 'plan_id' => $plan->id])
-            ->assertCreated()
-            ->assertJsonPath('status', Event::STATUS_PENDING_PAYMENT)
-            ->assertJsonPath('activated_at', null);
+        // The tier is bought afterwards as a guest pack, so neither a paid plan
+        // nor an id the backend has never had (the app sends 5, 6 and 8) may
+        // hold the event back or hand it extra guests.
+        foreach ([$paid->id, 999] as $planId) {
+            $this->actingAs($user, 'sanctum')
+                ->postJson('/api/events', ['name' => 'Gala', 'plan_id' => $planId])
+                ->assertCreated()
+                ->assertJsonPath('status', Event::STATUS_ACTIVE)
+                ->assertJsonPath('plan_id', $free->id)
+                ->assertJsonPath('participant_limit', 5);
+        }
     }
 
-    public function test_creating_an_event_requires_a_name_and_a_real_plan(): void
+    public function test_the_client_cannot_set_its_own_guest_allowance(): void
+    {
+        $user = User::factory()->create();
+        Plan::factory()->free()->create();
+
+        $id = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/events', ['name' => 'Gala', 'plan_id' => 1, 'participant_limit' => 500])
+            ->assertCreated()
+            ->assertJsonPath('participant_limit', 5)
+            ->json('id');
+
+        $this->actingAs($user, 'sanctum')
+            ->patchJson("/api/events/{$id}", ['participant_limit' => null, 'plan_id' => 4])
+            ->assertOk()
+            ->assertJsonPath('participant_limit', 5);
+    }
+
+    public function test_creating_an_event_requires_a_name(): void
     {
         $user = User::factory()->create();
 
         $this->actingAs($user, 'sanctum')
-            ->postJson('/api/events', ['plan_id' => 999])
+            ->postJson('/api/events', ['plan_id' => 1])
             ->assertStatus(422)
-            ->assertJsonValidationErrors(['name', 'plan_id']);
+            ->assertJsonValidationErrors(['name']);
     }
 
     public function test_a_scheduled_reveal_requires_a_reveal_at(): void
@@ -285,6 +310,113 @@ class EventApiTest extends TestCase
             ->assertNoContent();
 
         $this->assertDatabaseMissing('events', ['id' => $event->id]);
+    }
+
+    public function test_the_host_can_remove_a_photo_and_its_files(): void
+    {
+        config()->set('everly.media.disk', 'r2');
+        Storage::fake('r2');
+
+        $user = User::factory()->create();
+        $event = Event::factory()->for($user)->for(Plan::factory())->active()->create();
+        $guest = Guest::factory()->for($event)->create();
+        [$photo, $kept] = EventPhoto::factory()->count(2)->for($event)->for($guest)->create();
+        Storage::disk('r2')->put($photo->path, 'x');
+        Storage::disk('r2')->put($photo->thumbnail_path, 'x');
+
+        $this->actingAs($user, 'sanctum')
+            ->deleteJson("/api/events/{$event->id}/photos/{$photo->id}")
+            ->assertNoContent();
+
+        $this->assertModelMissing($photo);
+        $this->assertModelExists($kept);
+        Storage::disk('r2')->assertMissing([$photo->path, $photo->thumbnail_path]);
+        $this->assertFalse($guest->fresh()->isBlocked());
+    }
+
+    public function test_blocking_a_guest_removes_all_their_photos_and_stops_their_uploads(): void
+    {
+        $user = User::factory()->create();
+        $event = Event::factory()->for($user)->for(Plan::factory())->active()->create();
+        $guest = Guest::factory()->for($event)->create();
+        $other = Guest::factory()->for($event)->create();
+        $photos = EventPhoto::factory()->count(2)->for($event)->for($guest)->create();
+        $othersPhoto = EventPhoto::factory()->for($event)->for($other)->create();
+
+        $this->actingAs($user, 'sanctum')
+            ->deleteJson("/api/events/{$event->id}/photos/{$photos[0]->id}?block_guest=1")
+            ->assertNoContent();
+
+        $this->assertSame(0, $guest->photos()->count());
+        $this->assertModelExists($othersPhoto);
+        $this->assertTrue($guest->fresh()->isBlocked());
+
+        $this->postJson("/api/upload/{$event->qr_code_token}", [
+            'photo' => UploadedFile::fake()->image('again.jpg', 900, 675),
+        ], ['X-Guest-Token' => $guest->guest_token])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('photo');
+
+        $this->getJson("/api/upload/{$event->qr_code_token}", ['X-Guest-Token' => $guest->guest_token])
+            ->assertOk()
+            ->assertJsonPath('event.canUpload', false);
+    }
+
+    public function test_only_the_host_can_remove_a_photo_and_only_from_their_event(): void
+    {
+        $host = User::factory()->create();
+        $event = Event::factory()->for($host)->for(Plan::factory())->active()->create();
+        $photo = EventPhoto::factory()->for($event)->create();
+        $otherEvent = Event::factory()->for($host)->for(Plan::factory())->active()->create();
+
+        $this->actingAs(User::factory()->create(), 'sanctum')
+            ->deleteJson("/api/events/{$event->id}/photos/{$photo->id}")
+            ->assertNotFound();
+
+        $this->actingAs($host, 'sanctum')
+            ->deleteJson("/api/events/{$otherEvent->id}/photos/{$photo->id}")
+            ->assertNotFound();
+
+        $this->assertModelExists($photo);
+    }
+
+    public function test_deleting_an_event_removes_its_files_from_the_media_disk(): void
+    {
+        config()->set('everly.media.disk', 'r2');
+        Storage::fake('r2');
+
+        $user = User::factory()->create();
+        $event = Event::factory()->for($user)->for(Plan::factory())->create();
+        $other = Event::factory()->for($user)->for(Plan::factory())->create();
+        Storage::disk('r2')->put("events/{$event->id}/photo.jpg", 'x');
+        Storage::disk('r2')->put("events/{$event->id}/covers/cover.jpg", 'x');
+        Storage::disk('r2')->put("events/{$other->id}/photo.jpg", 'x');
+
+        $this->actingAs($user, 'sanctum')
+            ->deleteJson("/api/events/{$event->id}")
+            ->assertNoContent();
+
+        Storage::disk('r2')->assertMissing("events/{$event->id}/photo.jpg");
+        Storage::disk('r2')->assertMissing("events/{$event->id}/covers/cover.jpg");
+        Storage::disk('r2')->assertExists("events/{$other->id}/photo.jpg");
+    }
+
+    public function test_deleting_the_account_removes_every_hosted_events_files(): void
+    {
+        config()->set('everly.media.disk', 'r2');
+        Storage::fake('r2');
+
+        $user = User::factory()->create();
+        $event = Event::factory()->for($user)->for(Plan::factory())->create();
+        Storage::disk('r2')->put("events/{$event->id}/photo.jpg", 'x');
+
+        $this->actingAs($user, 'sanctum')
+            ->deleteJson('/api/auth/user')
+            ->assertOk();
+
+        $this->assertDatabaseMissing('users', ['id' => $user->id]);
+        $this->assertDatabaseMissing('events', ['id' => $event->id]);
+        Storage::disk('r2')->assertMissing("events/{$event->id}/photo.jpg");
     }
 
     /**

@@ -29,35 +29,47 @@ class GuestPackTest extends TestCase
 
     // --- webhook: purchases credit participant_limit per the §2 map ---------
 
-    public function test_a_purchase_webhook_adds_capacity_additively(): void
+    public function test_a_purchase_webhook_raises_the_event_to_the_packs_total(): void
     {
         $event = $this->eventWithCapacity(5);
 
-        $this->sendWebhook($this->purchasePayload($event, 'everly_guest_pack_intimate'))
+        $this->sendWebhook($this->purchasePayload($event, 'com.get.everly.guests.25'))
             ->assertOk()
             ->assertJsonPath('status', GuestPackPurchase::STATUS_APPLIED);
 
-        // base 5 + intimate pack 30.
-        $this->assertSame(35, $event->fresh()->participant_limit);
+        // "25 Guests" is the event's total, not 25 on top of the free 5.
+        $this->assertSame(25, $event->fresh()->participant_limit);
         $this->assertSame(5, $event->fresh()->base_participant_limit);
     }
 
-    public function test_multiple_packs_stack(): void
+    public function test_a_bigger_pack_upgrades_and_a_smaller_one_never_downgrades(): void
     {
         $event = $this->eventWithCapacity(5);
 
-        $this->sendWebhook($this->purchasePayload($event, 'everly_guest_pack_intimate'))->assertOk();
-        $this->sendWebhook($this->purchasePayload($event, 'everly_guest_pack_celebration'))->assertOk();
+        $this->sendWebhook($this->purchasePayload($event, 'com.get.everly.guests.50'))->assertOk();
+        $this->sendWebhook($this->purchasePayload($event, 'com.get.everly.guests.10'))->assertOk();
+        $this->assertSame(50, $event->fresh()->participant_limit);
 
-        // base 5 + 30 + 100.
-        $this->assertSame(135, $event->fresh()->participant_limit);
+        $this->sendWebhook($this->purchasePayload($event, 'com.get.everly.guests.100'))->assertOk();
+        $this->assertSame(100, $event->fresh()->participant_limit);
+    }
+
+    public function test_every_pack_the_app_sells_is_mapped(): void
+    {
+        $expected = [10 => 10, 25 => 25, 50 => 50, 100 => 100, 150 => 150];
+
+        foreach ($expected as $pack => $total) {
+            $event = $this->eventWithCapacity(5);
+            $this->sendWebhook($this->purchasePayload($event, "com.get.everly.guests.{$pack}"))->assertOk();
+            $this->assertSame($total, $event->fresh()->participant_limit);
+        }
     }
 
     public function test_an_unlimited_pack_removes_the_cap(): void
     {
         $event = $this->eventWithCapacity(5);
 
-        $this->sendWebhook($this->purchasePayload($event, 'everly_guest_pack_grand'))->assertOk();
+        $this->sendWebhook($this->purchasePayload($event, 'com.get.everly.guests.unlimited'))->assertOk();
 
         $this->assertNull($event->fresh()->participant_limit);
     }
@@ -69,10 +81,10 @@ class GuestPackTest extends TestCase
         $event = $this->eventWithCapacity(5);
         $txn = 'txn-refund-1';
 
-        $this->sendWebhook($this->purchasePayload($event, 'everly_guest_pack_intimate', $txn))->assertOk();
-        $this->assertSame(35, $event->fresh()->participant_limit);
+        $this->sendWebhook($this->purchasePayload($event, 'com.get.everly.guests.25', $txn))->assertOk();
+        $this->assertSame(25, $event->fresh()->participant_limit);
 
-        $this->sendWebhook($this->refundPayload($event, 'everly_guest_pack_intimate', $txn))
+        $this->sendWebhook($this->refundPayload($event, 'com.get.everly.guests.25', $txn))
             ->assertOk()
             ->assertJsonPath('status', GuestPackPurchase::STATUS_REVERSAL);
 
@@ -90,14 +102,26 @@ class GuestPackTest extends TestCase
         $event = $this->eventWithCapacity(5);
 
         // Buy a finite pack, then an unlimited one.
-        $this->sendWebhook($this->purchasePayload($event, 'everly_guest_pack_intimate', 'txn-a'))->assertOk();
-        $this->sendWebhook($this->purchasePayload($event, 'everly_guest_pack_grand', 'txn-b'))->assertOk();
+        $this->sendWebhook($this->purchasePayload($event, 'com.get.everly.guests.25', 'txn-a'))->assertOk();
+        $this->sendWebhook($this->purchasePayload($event, 'com.get.everly.guests.unlimited', 'txn-b'))->assertOk();
         $this->assertNull($event->fresh()->participant_limit);
 
-        // Refund the unlimited one: falls back to base 5 + the finite pack 30.
-        $this->sendWebhook($this->refundPayload($event, 'everly_guest_pack_grand', 'txn-b'))->assertOk();
+        // Refund the unlimited one: falls back to the finite 25 pack.
+        $this->sendWebhook($this->refundPayload($event, 'com.get.everly.guests.unlimited', 'txn-b'))->assertOk();
 
-        $this->assertSame(35, $event->fresh()->participant_limit);
+        $this->assertSame(25, $event->fresh()->participant_limit);
+    }
+
+    public function test_a_cancellation_that_is_not_a_refund_keeps_the_credit(): void
+    {
+        $event = $this->eventWithCapacity(5);
+
+        $this->sendWebhook($this->purchasePayload($event, 'com.get.everly.guests.25', 'txn-c'))->assertOk();
+        $this->sendWebhook($this->refundPayload($event, 'com.get.everly.guests.25', 'txn-c', 'UNSUBSCRIBE'))
+            ->assertOk()
+            ->assertJsonPath('status', GuestPackPurchase::STATUS_IGNORED);
+
+        $this->assertSame(25, $event->fresh()->participant_limit);
     }
 
     // --- webhook: idempotency, unknown SKU, unmatched event -----------------
@@ -105,12 +129,12 @@ class GuestPackTest extends TestCase
     public function test_a_replayed_webhook_credits_once(): void
     {
         $event = $this->eventWithCapacity(5);
-        $payload = $this->purchasePayload($event, 'everly_guest_pack_intimate');
+        $payload = $this->purchasePayload($event, 'com.get.everly.guests.25');
 
         $this->sendWebhook($payload)->assertOk();
         $this->sendWebhook($payload)->assertOk()->assertJsonPath('status', 'duplicate');
 
-        $this->assertSame(35, $event->fresh()->participant_limit);
+        $this->assertSame(25, $event->fresh()->participant_limit);
         $this->assertSame(1, GuestPackPurchase::where('status', GuestPackPurchase::STATUS_APPLIED)->count());
     }
 
@@ -127,7 +151,7 @@ class GuestPackTest extends TestCase
 
     public function test_a_purchase_for_an_unknown_event_is_recorded_unmatched(): void
     {
-        $payload = $this->purchasePayload($this->eventWithCapacity(5), 'everly_guest_pack_intimate');
+        $payload = $this->purchasePayload($this->eventWithCapacity(5), 'com.get.everly.guests.25');
         // Point the subscriber attribute at an event that doesn't exist.
         $payload['event']['subscriber_attributes']['everly_event_id']['value'] = '999999';
 
@@ -147,7 +171,7 @@ class GuestPackTest extends TestCase
     {
         $event = $this->eventWithCapacity(5);
 
-        $this->postJson('/api/webhooks/revenuecat', $this->purchasePayload($event, 'everly_guest_pack_intimate'), [
+        $this->postJson('/api/webhooks/revenuecat', $this->purchasePayload($event, 'com.get.everly.guests.25'), [
             'Authorization' => 'wrong',
         ])->assertUnauthorized();
 
@@ -160,7 +184,7 @@ class GuestPackTest extends TestCase
         config(['services.revenuecat.webhook_auth' => null]);
         $event = $this->eventWithCapacity(5);
 
-        $this->sendWebhook($this->purchasePayload($event, 'everly_guest_pack_intimate'))
+        $this->sendWebhook($this->purchasePayload($event, 'com.get.everly.guests.25'))
             ->assertUnauthorized();
 
         $this->assertSame(0, GuestPackPurchase::count());
@@ -176,12 +200,12 @@ class GuestPackTest extends TestCase
 
         $this->actingAs($user, 'sanctum')
             ->postJson("/api/events/{$event->id}/guest-packs/sync", [
-                'product_id' => 'everly_guest_pack_intimate',
+                'product_id' => 'com.get.everly.guests.25',
                 'transaction_id' => 'txn-sync-1',
             ])
             ->assertOk()
             ->assertJsonPath('status', GuestPackPurchase::STATUS_APPLIED)
-            ->assertJsonPath('event.participant_limit', 35);
+            ->assertJsonPath('event.participant_limit', 25);
     }
 
     public function test_sync_and_webhook_for_the_same_transaction_credit_once(): void
@@ -193,16 +217,16 @@ class GuestPackTest extends TestCase
 
         $this->actingAs($user, 'sanctum')
             ->postJson("/api/events/{$event->id}/guest-packs/sync", [
-                'product_id' => 'everly_guest_pack_intimate',
+                'product_id' => 'com.get.everly.guests.25',
                 'transaction_id' => $txn,
             ])->assertOk();
 
         // The async webhook lands afterwards for the same purchase.
-        $this->sendWebhook($this->purchasePayload($event, 'everly_guest_pack_intimate', $txn))
+        $this->sendWebhook($this->purchasePayload($event, 'com.get.everly.guests.25', $txn))
             ->assertOk()
             ->assertJsonPath('status', GuestPackPurchase::STATUS_IGNORED);
 
-        $this->assertSame(35, $event->fresh()->participant_limit);
+        $this->assertSame(25, $event->fresh()->participant_limit);
         $this->assertSame(1, GuestPackPurchase::where('status', GuestPackPurchase::STATUS_APPLIED)->count());
     }
 
@@ -214,7 +238,7 @@ class GuestPackTest extends TestCase
 
         $this->actingAs($user, 'sanctum')
             ->postJson("/api/events/{$event->id}/guest-packs/sync", [
-                'product_id' => 'everly_guest_pack_intimate',
+                'product_id' => 'com.get.everly.guests.25',
                 'transaction_id' => 'txn-x',
             ])->assertNotFound();
     }
@@ -226,7 +250,7 @@ class GuestPackTest extends TestCase
 
         $this->actingAs(User::factory()->create(), 'sanctum')
             ->postJson("/api/events/{$event->id}/guest-packs/sync", [
-                'product_id' => 'everly_guest_pack_intimate',
+                'product_id' => 'com.get.everly.guests.25',
                 'transaction_id' => 'txn-x',
             ])->assertNotFound();
     }
@@ -276,9 +300,12 @@ class GuestPackTest extends TestCase
     /**
      * @return array<string, mixed>
      */
-    private function refundPayload(Event $event, string $productId, string $txn): array
+    private function refundPayload(Event $event, string $productId, string $txn, string $reason = GuestPackPurchase::CANCEL_REASON_REFUND): array
     {
-        return $this->payload(GuestPackPurchase::TYPE_REFUND, $event, $productId, $txn);
+        $payload = $this->payload(GuestPackPurchase::TYPE_CANCELLATION, $event, $productId, $txn);
+        $payload['event']['cancel_reason'] = $reason;
+
+        return $payload;
     }
 
     /**

@@ -63,4 +63,16 @@ return [
         'fallback_cover' => '/join-cover.jpg',
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Support contact
+    |--------------------------------------------------------------------------
+    |
+    | Shown on the public /privacy and /support pages the App Store listing
+    | links to.
+    |
+    */
+
+    'support_email' => env('EVERLY_SUPPORT_EMAIL', 'luciano@getclevernote.app'),
+
 ];

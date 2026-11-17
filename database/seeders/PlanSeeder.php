@@ -11,6 +11,12 @@ class PlanSeeder extends Seeder
      * The four reference tiers from the product spec. Seeded idempotently by
      * name so re-running the seeder updates pricing instead of duplicating
      * plans that live events already point at.
+     *
+     * Only Free is still handed out: it is the base plan every event is
+     * created on (Plan::base), and guest capacity is sold separately as
+     * guest packs. So Free carries no photo cap and no locked features — a
+     * 150-guest event lives on it too. The paid three are kept for events
+     * created before that change.
      */
     public function run(): void
     {
@@ -20,9 +26,10 @@ class PlanSeeder extends Seeder
                 'price_cents' => 0,
                 'currency' => 'brl',
                 'max_participants' => 5,
-                'max_uploads' => 50,
-                'allow_download' => false,
-                'allow_slideshow' => false,
+                // null = unlimited; each guest is held to the event's shot limit.
+                'max_uploads' => null,
+                'allow_download' => true,
+                'allow_slideshow' => true,
                 'white_label' => false,
                 'duration_days' => 1,
             ],

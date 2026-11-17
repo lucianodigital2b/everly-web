@@ -32,8 +32,8 @@ class GuestUploadController extends Controller
     public function show(Request $request, string $token): JsonResponse
     {
         $event = $this->resolveEvent($token);
-        $canUpload = $event->acceptsUploads();
         $guest = $this->knownGuest($request, $event);
+        $canUpload = $event->acceptsUploads() && ! $guest?->isBlocked();
 
         return response()->json([
             'active' => $canUpload,
@@ -121,6 +121,13 @@ class GuestUploadController extends Controller
         }
 
         $guest = $this->resolveGuest($request, $event);
+
+        if ($guest->isBlocked()) {
+            throw ValidationException::withMessages([
+                'photo' => ["The host isn't accepting photos from you for this event."],
+            ]);
+        }
+
         $this->rememberName($guest, $request->input('guest_name'));
 
         if ($guest->hasReachedShotLimit()) {

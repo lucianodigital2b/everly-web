@@ -55,6 +55,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::apiResource('events', EventController::class)->except('update');
     Route::patch('events/{event}', [EventController::class, 'update']);
     Route::get('events/{event}/photos', [EventController::class, 'photos']);
+    Route::delete('events/{event}/photos/{photo}', [EventController::class, 'destroyPhoto']);
 
     Route::post('events/{event}/checkout', [CheckoutController::class, 'checkout']);
     Route::get('events/{event}/payment', [CheckoutController::class, 'payment']);
