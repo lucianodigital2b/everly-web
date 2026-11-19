@@ -59,8 +59,33 @@ return [
     'invite' => [
         'app_store_url' => env('INVITE_APP_STORE_URL', 'https://apps.apple.com/app/everly'),
 
+        // Apple's campaign provider token (App Store Connect > Analytics >
+        // Campaigns). With it, /app adds `pt` + `ct` to the store link so App
+        // Store Connect attributes installs to the campaign; without it, App
+        // Store Connect still sees this site as the web referrer.
+        'apple_provider_token' => env('APPLE_PROVIDER_TOKEN'),
+
         // Shown when the event has no cover of its own.
         'fallback_cover' => '/join-cover.jpg',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Web analytics
+    |--------------------------------------------------------------------------
+    |
+    | PostHog on the public pages (home, /app, /privacy, /support), in the same
+    | project as the app so a click on the site and the install that follows
+    | live in one place. The key is the public project key the app already
+    | ships with. Only rendered in production. The guest invite pages are left
+    | out on purpose: their URL carries the event's qr_code_token, which is the
+    | credential, and it must not end up in a third party's $current_url.
+    |
+    */
+
+    'analytics' => [
+        'posthog_key' => env('POSTHOG_KEY', 'phc_JqPDRS6CSbUKx1UCw2ov870xYvU6R4ySMJGfWVDm3zt'),
+        'posthog_host' => env('POSTHOG_HOST', 'https://us.i.posthog.com'),
     ],
 
     /*

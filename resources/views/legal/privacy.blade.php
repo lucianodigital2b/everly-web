@@ -17,7 +17,7 @@
   <li><strong>Photos.</strong> The photos taken or uploaded to an event, by the host and by guests, along with a thumbnail we generate and the time they were added.</li>
   <li><strong>Guests.</strong> Guests do not create an account. If a guest types a name, it is shown with their photos. Each guest's device gets a random token so we can count how many photos they have left; it does not identify the person.</li>
   <li><strong>Purchases.</strong> Guest packs are paid through Apple. We never see your card or payment details. Our purchase processor, RevenueCat, receives the purchase record and your Everly user identifier so the pack can be credited to the right event.</li>
-  <li><strong>Analytics and attribution.</strong> We use PostHog to understand how the app is used (for example, which screens are opened) and AppsFlyer to measure which ads lead to installs. AppsFlyer only uses your device's advertising identifier if you allow tracking when iOS asks.</li>
+  <li><strong>Analytics and attribution.</strong> We use PostHog to understand how the app and this website are used (for example, which screens or pages are opened, and which link brought you here) and AppsFlyer to measure which ads lead to installs. AppsFlyer only uses your device's advertising identifier if you allow tracking when iOS asks.</li>
   <li><strong>Technical data.</strong> Our servers record IP addresses in logs and use them to prevent abuse, such as too many uploads in a short time.</li>
 </ul>
 

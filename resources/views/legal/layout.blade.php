@@ -1,6 +1,7 @@
 {{--
     Shell for the public legal pages (privacy, support) that the App Store
-    listing links to. Self-contained like join.blade.php: no Inertia, no JS.
+    listing links to. Self-contained like join.blade.php: no Inertia; the only script is
+    PostHog (partials/analytics), loaded async and only in production.
 --}}
 <!DOCTYPE html>
 <html lang="en">
@@ -48,6 +49,7 @@
   footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--hairline); color: var(--ink-small); font-size: 14px; }
   footer a { margin-right: 16px; }
 </style>
+@include('partials.analytics')
 </head>
 <body>
 <main>
