@@ -3,31 +3,35 @@
     Self-contained, no JavaScript required. Only async analytics in production.
 --}}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ $htmlLang }}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Everly: wedding planner &amp; guest photo album for iPhone</title>
-<meta name="description" content="Plan the wedding and keep every photo. Checklist, guest RSVPs, budget, timeline and a shared guest camera, in one iPhone app.">
-<link rel="canonical" href="{{ url('/') }}">
+<title>{!! __('Everly: wedding planner &amp; guest photo album for iPhone') !!}</title>
+<meta name="description" content="{{ __('Plan the wedding and keep every photo. Checklist, guest RSVPs, budget, timeline and a shared guest camera, in one iPhone app.') }}">
+<link rel="canonical" href="{{ $canonical }}">
+<link rel="alternate" hreflang="en" href="{{ url('/') }}">
+<link rel="alternate" hreflang="pt-BR" href="{{ url('/pt') }}">
+<link rel="alternate" hreflang="x-default" href="{{ url('/') }}">
 <meta name="theme-color" content="#FBF8F5">
 <meta name="apple-itunes-app" content="app-id=6759682374">
 
 <!-- Open Graph -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Everly">
-<meta property="og:title" content="Everly: wedding planner &amp; guest photo album for iPhone">
-<meta property="og:description" content="Plan the wedding and keep every photo. Checklist, guest RSVPs, budget, timeline and a shared guest camera, in one iPhone app.">
-<meta property="og:url" content="{{ url('/') }}">
-<meta property="og:image" content="{{ url('/images/landing/og.jpg') }}">
+<meta property="og:title" content="{!! __('Everly: wedding planner &amp; guest photo album for iPhone') !!}">
+<meta property="og:locale" content="{{ $ogLocale }}">
+<meta property="og:description" content="{{ __('Plan the wedding and keep every photo. Checklist, guest RSVPs, budget, timeline and a shared guest camera, in one iPhone app.') }}">
+<meta property="og:url" content="{{ $canonical }}">
+<meta property="og:image" content="{{ url($img.'og.jpg') }}">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 
 <!-- Twitter -->
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Everly: wedding planner &amp; guest photo album for iPhone">
-<meta name="twitter:description" content="Plan the wedding and keep every photo. Checklist, guest RSVPs, budget, timeline and a shared guest camera, in one iPhone app.">
-<meta name="twitter:image" content="{{ url('/images/landing/og.jpg') }}">
+<meta name="twitter:title" content="{!! __('Everly: wedding planner &amp; guest photo album for iPhone') !!}">
+<meta name="twitter:description" content="{{ __('Plan the wedding and keep every photo. Checklist, guest RSVPs, budget, timeline and a shared guest camera, in one iPhone app.') }}">
+<meta name="twitter:image" content="{{ url($img.'og.jpg') }}">
 
 <!-- Fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -40,8 +44,8 @@
 @if (config('everly.web.adobe_fonts_kit'))
 <link rel="stylesheet" href="https://use.typekit.net/{{ config('everly.web.adobe_fonts_kit') }}.css">
 @endif
-<link rel="preload" as="image" href="/images/landing/hero-hand.webp">
-<link rel="preload" as="image" href="/images/landing/screen-plan.webp">
+<link rel="preload" as="image" href="{{ $img }}hero-hand.webp">
+<link rel="preload" as="image" href="{{ $img }}screen-plan.webp">
 
 @include('partials.analytics')
 
@@ -833,13 +837,13 @@
 <body>
 <header class="site-header">
     <div class="container">
-        <a class="wordmark" href="{{ url('/') }}">everly</a>
-        <nav class="nav" aria-label="Primary navigation">
-            <a href="#planner">Planner</a>
-            <a href="#album">Album</a>
-            <a href="#faq">FAQ</a>
+        <a class="wordmark" href="{{ $canonical }}">everly</a>
+        <nav class="nav" aria-label="{{ __('Primary navigation') }}">
+            <a href="#planner">{{ __('Planner') }}</a>
+            <a href="#album">{{ __('Album') }}</a>
+            <a href="#faq">{{ __('FAQ') }}</a>
         </nav>
-        <a class="btn btn--dark btn--small" href="{{ route('store-link', ['utm_source' => 'website', 'utm_medium' => 'landing', 'utm_campaign' => 'header']) }}">Get the app</a>
+        <a class="btn btn--dark btn--small" href="{{ route('store-link', ['utm_source' => $utmSource, 'utm_medium' => 'landing', 'utm_campaign' => 'header']) }}">{{ __('Get the app') }}</a>
     </div>
 </header>
 
@@ -848,27 +852,27 @@
     <section class="hero">
         <div class="container">
             <div class="hero__content">
-                <p class="eyebrow">The wedding planner with a guest camera</p>
-                <h1 class="hero__title">Plan the wedding.<br>Keep every photo.</h1>
-                <p class="hero__sub">The calm planning app with your checklist, guest list, budget and timeline in one place. Plus a shared album your guests fill from their phones.</p>
+                <p class="eyebrow">{{ __('The wedding planner with a guest camera') }}</p>
+                <h1 class="hero__title">{!! __('Plan the wedding.<br>Keep every photo.') !!}</h1>
+                <p class="hero__sub">{{ __('The calm planning app with your checklist, guest list, budget and timeline in one place. Plus a shared album your guests fill from their phones.') }}</p>
                 <div class="hero__actions">
-                    <a class="btn-store" href="{{ route('store-link', ['utm_source' => 'website', 'utm_medium' => 'landing', 'utm_campaign' => 'hero']) }}">
+                    <a class="btn-store" href="{{ route('store-link', ['utm_source' => $utmSource, 'utm_medium' => 'landing', 'utm_campaign' => 'hero']) }}">
                         <svg viewBox="0 0 384 512" aria-hidden="true" focusable="false">
                             <path fill="currentColor" d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/>
                         </svg>
                         <span class="btn-store__text">
-                            <span class="btn-store__small">Download on the</span>
-                            <span class="btn-store__large">App Store</span>
+                            <span class="btn-store__small">{{ __('Download on the') }}</span>
+                            <span class="btn-store__large">{{ __('App Store') }}</span>
                         </span>
                     </a>
-                    <a class="btn-text" href="#planner">See how it works <span aria-hidden="true">↓</span></a>
+                    <a class="btn-text" href="#planner">{{ __('See how it works') }} <span aria-hidden="true">↓</span></a>
                 </div>
             </div>
             <div class="hero__media">
-                <img src="/images/landing/hero-hand.webp" alt="Hand holding an iPhone showing the Everly Plan screen, in a warm bedroom at night." width="1200" height="1600" decoding="async">
+                <img src="{{ $img }}hero-hand.webp" alt="{{ __('Hand holding an iPhone showing the Everly Plan screen, in a warm bedroom at night.') }}" width="1200" height="1600" decoding="async">
                 <div class="float-chip" aria-hidden="true">
-                    <span class="float-chip__count">205 days to go</span>
-                    <span class="float-chip__label">Your wedding</span>
+                    <span class="float-chip__count">{{ __('205 days to go') }}</span>
+                    <span class="float-chip__label">{{ __('Your wedding') }}</span>
                 </div>
             </div>
         </div>
@@ -877,12 +881,12 @@
     <!-- Feature index -->
     <section class="feature-index">
         <div class="container">
-            <div class="chip-row" aria-label="App features">
-                <a class="chip" href="#planner">Checklist</a>
-                <a class="chip" href="#guests">Guests</a>
-                <a class="chip" href="#budget">Budget</a>
-                <a class="chip" href="#timeline">Timeline</a>
-                <a class="chip" href="#album">Shared album</a>
+            <div class="chip-row" aria-label="{{ __('App features') }}">
+                <a class="chip" href="#planner">{{ __('Checklist') }}</a>
+                <a class="chip" href="#guests">{{ __('Guests') }}</a>
+                <a class="chip" href="#budget">{{ __('Budget') }}</a>
+                <a class="chip" href="#timeline">{{ __('Timeline') }}</a>
+                <a class="chip" href="#album">{{ __('Shared album') }}</a>
             </div>
         </div>
     </section>
@@ -892,37 +896,37 @@
         <div class="container">
             <div class="split">
                 <div class="split__content">
-                    <p class="eyebrow">Plan</p>
-                    <h2>A checklist that knows what&rsquo;s next.</h2>
-                    <p>Everly builds a countdown, overall progress and tasks grouped by phase, so you always know what to do next.</p>
+                    <p class="eyebrow">{{ __('Plan') }}</p>
+                    <h2>{!! __('A checklist that knows what&rsquo;s next.') !!}</h2>
+                    <p>{{ __('Everly builds a countdown, overall progress and tasks grouped by phase, so you always know what to do next.') }}</p>
                     <ul class="feature-list">
                         <li>
                             <svg class="check" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <circle cx="10" cy="10" r="9" opacity="0.3"/>
                                 <path d="M6 10.5l2.5 2.5L14 7"/>
                             </svg>
-                            Countdown and overall progress
+                            {{ __('Countdown and overall progress') }}
                         </li>
                         <li>
                             <svg class="check" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <circle cx="10" cy="10" r="9" opacity="0.3"/>
                                 <path d="M6 10.5l2.5 2.5L14 7"/>
                             </svg>
-                            Up next tasks, always in reach
+                            {{ __('Up next tasks, always in reach') }}
                         </li>
                         <li>
                             <svg class="check" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <circle cx="10" cy="10" r="9" opacity="0.3"/>
                                 <path d="M6 10.5l2.5 2.5L14 7"/>
                             </svg>
-                            Checklist organised by time before the wedding
+                            {{ __('Checklist organised by time before the wedding') }}
                         </li>
                     </ul>
                 </div>
                 <div class="split__media">
                     <div class="phone phone--md">
                         <div class="phone__screen">
-                            <img src="/images/landing/screen-plan.webp" alt="Everly plan and checklist screen." width="1290" height="2796" loading="lazy" decoding="async">
+                            <img src="{{ $img }}screen-plan.webp" alt="{{ __('Everly plan and checklist screen.') }}" width="1290" height="2796" loading="lazy" decoding="async">
                         </div>
                     </div>
                 </div>
@@ -934,36 +938,36 @@
         <div class="container">
             <div class="split split--flip">
                 <div class="split__content">
-                    <p class="eyebrow">Guests</p>
-                    <h2>Know who is coming, what they eat, and who they bring.</h2>
-                    <p>Keep one guest list with RSVP status, meal choices, plus-ones and groups. Import from contacts or export to PDF when you need it.</p>
+                    <p class="eyebrow">{{ __('Guests') }}</p>
+                    <h2>{{ __('Know who is coming, what they eat, and who they bring.') }}</h2>
+                    <p>{{ __('Keep one guest list with RSVP status, meal choices, plus-ones and groups. Import from contacts or export to PDF when you need it.') }}</p>
                     <ul class="feature-list">
                         <li>
                             <svg class="check" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <circle cx="10" cy="10" r="9" opacity="0.3"/>
                                 <path d="M6 10.5l2.5 2.5L14 7"/>
                             </svg>
-                            RSVP status and meal choices
+                            {{ __('RSVP status and meal choices') }}
                         </li>
                         <li>
                             <svg class="check" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <circle cx="10" cy="10" r="9" opacity="0.3"/>
                                 <path d="M6 10.5l2.5 2.5L14 7"/>
                             </svg>
-                            Plus-ones and guest groups
+                            {{ __('Plus-ones and guest groups') }}
                         </li>
                         <li>
                             <svg class="check" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <circle cx="10" cy="10" r="9" opacity="0.3"/>
                                 <path d="M6 10.5l2.5 2.5L14 7"/>
                             </svg>
-                            Import from contacts, export to PDF
+                            {{ __('Import from contacts, export to PDF') }}
                         </li>
                     </ul>
                 </div>
                 <div class="split__media">
-                    <img class="ring-photo" src="/images/landing/ring-hand.webp" alt="Hand with an engagement ring holding an iPhone showing the Everly Guests screen." width="1200" height="1600" loading="lazy" decoding="async">
-                    <div class="photo-float-chip" aria-hidden="true">74 attending &middot; 45 awaiting</div>
+                    <img class="ring-photo" src="{{ $img }}ring-hand.webp" alt="{{ __('Hand with an engagement ring holding an iPhone showing the Everly Guests screen.') }}" width="1200" height="1600" loading="lazy" decoding="async">
+                    <div class="photo-float-chip" aria-hidden="true">{!! __('74 attending &middot; 45 awaiting') !!}</div>
                 </div>
             </div>
         </div>
@@ -973,51 +977,51 @@
         <div class="container">
             <div class="split">
                 <div class="split__content">
-                    <p class="eyebrow">Budget</p>
-                    <h2>See where the money goes, before it goes.</h2>
-                    <p>Track your total budget, spent and remaining, with per-category progress and an expense log for every vendor and payment.</p>
+                    <p class="eyebrow">{{ __('Budget') }}</p>
+                    <h2>{{ __('See where the money goes, before it goes.') }}</h2>
+                    <p>{{ __('Track your total budget, spent and remaining, with per-category progress and an expense log for every vendor and payment.') }}</p>
                     <ul class="feature-list">
                         <li>
                             <svg class="check" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <circle cx="10" cy="10" r="9" opacity="0.3"/>
                                 <path d="M6 10.5l2.5 2.5L14 7"/>
                             </svg>
-                            Total budget, spent and remaining
+                            {{ __('Total budget, spent and remaining') }}
                         </li>
                         <li>
                             <svg class="check" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <circle cx="10" cy="10" r="9" opacity="0.3"/>
                                 <path d="M6 10.5l2.5 2.5L14 7"/>
                             </svg>
-                            Per-category bars and donut chart
+                            {{ __('Per-category bars and donut chart') }}
                         </li>
                         <li>
                             <svg class="check" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <circle cx="10" cy="10" r="9" opacity="0.3"/>
                                 <path d="M6 10.5l2.5 2.5L14 7"/>
                             </svg>
-                            Expense log by vendor and payment
+                            {{ __('Expense log by vendor and payment') }}
                         </li>
                     </ul>
                 </div>
                 <div class="split__media">
                     <div class="phone phone--md phone--tilt-l">
                         <div class="phone__screen">
-                            <img src="/images/landing/screen-budget.webp" alt="Everly budget tracker screen." width="1290" height="2796" loading="lazy" decoding="async">
+                            <img src="{{ $img }}screen-budget.webp" alt="{{ __('Everly budget tracker screen.') }}" width="1290" height="2796" loading="lazy" decoding="async">
                         </div>
                     </div>
                     <div class="budget-card" aria-hidden="true">
                         <div class="budget-card__row">
                             <div class="budget-card__title">
-                                <span>Venue</span>
-                                <span class="budget-card__amount">$8,500 / $9,000</span>
+                                <span>{{ __('Venue') }}</span>
+                                <span class="budget-card__amount">{{ __('$8,500 / $9,000') }}</span>
                             </div>
                             <div class="mini-progress"><span style="width: 94%"></span></div>
                         </div>
                         <div class="budget-card__row">
                             <div class="budget-card__title">
-                                <span>Catering</span>
-                                <span class="budget-card__amount">$5,200 / $9,600</span>
+                                <span>{{ __('Catering') }}</span>
+                                <span class="budget-card__amount">{{ __('$5,200 / $9,600') }}</span>
                             </div>
                             <div class="mini-progress"><span style="width: 54%"></span></div>
                         </div>
@@ -1031,37 +1035,37 @@
         <div class="container">
             <div class="split split--flip">
                 <div class="split__content">
-                    <p class="eyebrow">Timeline</p>
-                    <h2>Every task, counted back from the day.</h2>
-                    <p>See the whole plan by phase, from a year out to the final weeks, and exactly what is due right now.</p>
+                    <p class="eyebrow">{{ __('Timeline') }}</p>
+                    <h2>{{ __('Every task, counted back from the day.') }}</h2>
+                    <p>{{ __('See the whole plan by phase, from a year out to the final weeks, and exactly what is due right now.') }}</p>
                     <ul class="feature-list">
                         <li>
                             <svg class="check" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <circle cx="10" cy="10" r="9" opacity="0.3"/>
                                 <path d="M6 10.5l2.5 2.5L14 7"/>
                             </svg>
-                            Tasks grouped by months before the wedding
+                            {{ __('Tasks grouped by months before the wedding') }}
                         </li>
                         <li>
                             <svg class="check" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <circle cx="10" cy="10" r="9" opacity="0.3"/>
                                 <path d="M6 10.5l2.5 2.5L14 7"/>
                             </svg>
-                            Filter by to do, done or essentials
+                            {{ __('Filter by to do, done or essentials') }}
                         </li>
                         <li>
                             <svg class="check" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <circle cx="10" cy="10" r="9" opacity="0.3"/>
                                 <path d="M6 10.5l2.5 2.5L14 7"/>
                             </svg>
-                            Due dates that count back from your date
+                            {{ __('Due dates that count back from your date') }}
                         </li>
                     </ul>
                 </div>
                 <div class="split__media">
                     <div class="phone phone--md">
                         <div class="phone__screen">
-                            <img src="/images/landing/screen-timeline.webp" alt="Everly timeline screen with tasks grouped by months before the wedding." width="1290" height="2796" loading="lazy" decoding="async">
+                            <img src="{{ $img }}screen-timeline.webp" alt="{{ __('Everly timeline screen with tasks grouped by months before the wedding.') }}" width="1290" height="2796" loading="lazy" decoding="async">
                         </div>
                     </div>
                 </div>
@@ -1073,37 +1077,37 @@
     <section class="album-band" id="album">
         <div class="container">
             <div class="album__header">
-                <p class="eyebrow">Shared album</p>
-                <h2>Your guests are the second photographer.</h2>
-                <p style="max-width: 560px; margin: 16px auto 0;">Set up a shared guest camera. Guests scan a QR, shoot a limited roll with one shared filter, and the album stays hidden until you reveal it.</p>
+                <p class="eyebrow">{{ __('Shared album') }}</p>
+                <h2>{{ __('Your guests are the second photographer.') }}</h2>
+                <p style="max-width: 560px; margin: 16px auto 0;">{{ __('Set up a shared guest camera. Guests scan a QR, shoot a limited roll with one shared filter, and the album stays hidden until you reveal it.') }}</p>
             </div>
             <div class="album__phones">
                 <div class="phone phone--sm phone--tilt-l">
                     <div class="phone__screen">
-                        <img src="/images/landing/screen-qr.webp" alt="Everly event QR code screen." width="1290" height="2796" loading="lazy" decoding="async">
+                        <img src="{{ $img }}screen-qr.webp" alt="{{ __('Everly event QR code screen.') }}" width="1290" height="2796" loading="lazy" decoding="async">
                     </div>
                 </div>
                 <div class="phone phone--sm phone--tilt-r">
                     <div class="phone__screen">
-                        <img src="/images/landing/screen-album.webp" alt="Everly shared photo album screen." width="1290" height="2796" loading="lazy" decoding="async">
+                        <img src="{{ $img }}screen-album.webp" alt="{{ __('Everly shared photo album screen.') }}" width="1290" height="2796" loading="lazy" decoding="async">
                     </div>
                 </div>
             </div>
             <div class="steps-grid">
                 <div class="step">
                     <div class="step__number">1</div>
-                    <h3>Share the QR</h3>
-                    <p>Guests scan a QR code at the party. No accounts needed.</p>
+                    <h3>{{ __('Share the QR') }}</h3>
+                    <p>{{ __('Guests scan a QR code at the party. No accounts needed.') }}</p>
                 </div>
                 <div class="step">
                     <div class="step__number">2</div>
-                    <h3>Everyone shoots</h3>
-                    <p>Each guest gets a limited roll of shots with one shared filter.</p>
+                    <h3>{{ __('Everyone shoots') }}</h3>
+                    <p>{{ __('Each guest gets a limited roll of shots with one shared filter.') }}</p>
                 </div>
                 <div class="step">
                     <div class="step__number">3</div>
-                    <h3>Reveal it together</h3>
-                    <p>Nobody sees the photos until you open the album. Then they are all in one place.</p>
+                    <h3>{{ __('Reveal it together') }}</h3>
+                    <p>{{ __('Nobody sees the photos until you open the album. Then they are all in one place.') }}</p>
                 </div>
             </div>
         </div>
@@ -1113,70 +1117,70 @@
     <section class="section" id="pricing">
         <div class="container">
             <div class="album__header" style="margin-bottom: 0;">
-                <p class="eyebrow">Free vs Premium</p>
-                <h2>Start free. Add more when you need it.</h2>
+                <p class="eyebrow">{{ __('Free vs Premium') }}</p>
+                <h2>{{ __('Start free. Add more when you need it.') }}</h2>
             </div>
             <div class="comparison-grid">
                 <div class="comparison-card">
-                    <h3>Free</h3>
+                    <h3>{{ __('Free') }}</h3>
                     <ul>
                         <li>
                             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <circle cx="10" cy="10" r="9" opacity="0.3"/>
                                 <path d="M6 10.5l2.5 2.5L14 7"/>
                             </svg>
-                            Plan tab with countdown, progress and up-next tasks
+                            {{ __('Plan tab with countdown, progress and up-next tasks') }}
                         </li>
                         <li>
                             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <circle cx="10" cy="10" r="9" opacity="0.3"/>
                                 <path d="M6 10.5l2.5 2.5L14 7"/>
                             </svg>
-                            Checklist organised by phase
+                            {{ __('Checklist organised by phase') }}
                         </li>
                         <li>
                             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <circle cx="10" cy="10" r="9" opacity="0.3"/>
                                 <path d="M6 10.5l2.5 2.5L14 7"/>
                             </svg>
-                            Shared wedding album
+                            {{ __('Shared wedding album') }}
                         </li>
                     </ul>
-                    <p class="comparison-note">Download is free.</p>
+                    <p class="comparison-note">{{ __('Download is free.') }}</p>
                 </div>
                 <div class="comparison-card">
-                    <h3>Premium</h3>
+                    <h3>{{ __('Premium') }}</h3>
                     <ul>
                         <li>
                             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <circle cx="10" cy="10" r="9" opacity="0.3"/>
                                 <path d="M6 10.5l2.5 2.5L14 7"/>
                             </svg>
-                            Guest list with RSVPs, menus and groups
+                            {{ __('Guest list with RSVPs, menus and groups') }}
                         </li>
                         <li>
                             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <circle cx="10" cy="10" r="9" opacity="0.3"/>
                                 <path d="M6 10.5l2.5 2.5L14 7"/>
                             </svg>
-                            Import guests from contacts and export to PDF
+                            {{ __('Import guests from contacts and export to PDF') }}
                         </li>
                         <li>
                             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <circle cx="10" cy="10" r="9" opacity="0.3"/>
                                 <path d="M6 10.5l2.5 2.5L14 7"/>
                             </svg>
-                            Budget tracker for every vendor and payment
+                            {{ __('Budget tracker for every vendor and payment') }}
                         </li>
                         <li>
                             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <circle cx="10" cy="10" r="9" opacity="0.3"/>
                                 <path d="M6 10.5l2.5 2.5L14 7"/>
                             </svg>
-                            Timeline of every task by date
+                            {{ __('Timeline of every task by date') }}
                         </li>
                     </ul>
-                    <p class="comparison-note">Premium is an optional in-app subscription.</p>
+                    <p class="comparison-note">{{ __('Premium is an optional in-app subscription.') }}</p>
                 </div>
             </div>
         </div>
@@ -1186,29 +1190,29 @@
     <section class="section" id="faq">
         <div class="container">
             <div class="album__header" style="margin-bottom: 40px;">
-                <p class="eyebrow">FAQ</p>
-                <h2>Questions, answered.</h2>
+                <p class="eyebrow">{{ __('FAQ') }}</p>
+                <h2>{{ __('Questions, answered.') }}</h2>
             </div>
             <div class="faq">
                 <details class="faq__item">
-                    <summary>Is Everly free? <span class="faq__icon" aria-hidden="true"></span></summary>
-                    <p>Yes. Download is free. The Plan tab, countdown, progress, checklist, and shared wedding album are free. Premium is an optional in-app subscription for guests, budget, timeline, and import and export.</p>
+                    <summary>{{ __('Is Everly free?') }} <span class="faq__icon" aria-hidden="true"></span></summary>
+                    <p>{{ __('Yes. Download is free. The Plan tab, countdown, progress, checklist, and shared wedding album are free. Premium is an optional in-app subscription for guests, budget, timeline, and import and export.') }}</p>
                 </details>
                 <details class="faq__item">
-                    <summary>Do my guests need to download the app? <span class="faq__icon" aria-hidden="true"></span></summary>
-                    <p>No. Guests scan the QR or open the invite link and can add photos straight from their phone&rsquo;s browser, with no account and no sign-up. Guests who have the app can also shoot with the shared event camera.</p>
+                    <summary>{{ __('Do my guests need to download the app?') }} <span class="faq__icon" aria-hidden="true"></span></summary>
+                    <p>{!! __('No. Guests scan the QR or open the invite link and can add photos straight from their phone&rsquo;s browser, with no account and no sign-up. Guests who have the app can also shoot with the shared event camera.') !!}</p>
                 </details>
                 <details class="faq__item">
-                    <summary>Can we use it for engagement parties, showers or rehearsal dinners? <span class="faq__icon" aria-hidden="true"></span></summary>
-                    <p>Yes. The shared album works for any event. Each event has its own QR code and guest limit, so you can create one for each celebration if you like.</p>
+                    <summary>{{ __('Can we use it for engagement parties, showers or rehearsal dinners?') }} <span class="faq__icon" aria-hidden="true"></span></summary>
+                    <p>{{ __('Yes. The shared album works for any event. Each event has its own QR code and guest limit, so you can create one for each celebration if you like.') }}</p>
                 </details>
                 <details class="faq__item">
-                    <summary>Is it on Android? <span class="faq__icon" aria-hidden="true"></span></summary>
-                    <p>Everly is iPhone only for now. We built the iOS app first and may consider Android later.</p>
+                    <summary>{{ __('Is it on Android?') }} <span class="faq__icon" aria-hidden="true"></span></summary>
+                    <p>{{ __('Everly is iPhone only for now. We built the iOS app first and may consider Android later.') }}</p>
                 </details>
                 <details class="faq__item">
-                    <summary>Who sees our photos? <span class="faq__icon" aria-hidden="true"></span></summary>
-                    <p>Only people in the event. Nobody sees anything until you reveal the album. You can also choose whether guests see every photo or only their own.</p>
+                    <summary>{{ __('Who sees our photos?') }} <span class="faq__icon" aria-hidden="true"></span></summary>
+                    <p>{{ __('Only people in the event. Nobody sees anything until you reveal the album. You can also choose whether guests see every photo or only their own.') }}</p>
                 </details>
             </div>
         </div>
@@ -1217,15 +1221,15 @@
     <!-- Final CTA -->
     <section class="final-cta">
         <div class="container">
-            <h2>Your wedding, planned.<br>Your photos, together.</h2>
-            <p>Download Everly free and start your plan and your shared album today.</p>
-            <a class="btn-store" href="{{ route('store-link', ['utm_source' => 'website', 'utm_medium' => 'landing', 'utm_campaign' => 'final']) }}">
+            <h2>{!! __('Your wedding, planned.<br>Your photos, together.') !!}</h2>
+            <p>{{ __('Download Everly free and start your plan and your shared album today.') }}</p>
+            <a class="btn-store" href="{{ route('store-link', ['utm_source' => $utmSource, 'utm_medium' => 'landing', 'utm_campaign' => 'final']) }}">
                 <svg viewBox="0 0 384 512" aria-hidden="true" focusable="false">
                     <path fill="currentColor" d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/>
                 </svg>
                 <span class="btn-store__text">
-                    <span class="btn-store__small">Download on the</span>
-                    <span class="btn-store__large">App Store</span>
+                    <span class="btn-store__small">{{ __('Download on the') }}</span>
+                    <span class="btn-store__large">{{ __('App Store') }}</span>
                 </span>
             </a>
         </div>
@@ -1236,14 +1240,19 @@
     <div class="container">
         <div class="footer-inner">
             <div class="footer-brand">
-                <a class="wordmark" href="{{ url('/') }}">everly</a>
-                <p class="footer-copy" style="margin: 8px 0 0;">Made for couples who&rsquo;d rather be planning than spreadsheeting.</p>
+                <a class="wordmark" href="{{ $canonical }}">everly</a>
+                <p class="footer-copy" style="margin: 8px 0 0;">{!! __('Made for couples who&rsquo;d rather be planning than spreadsheeting.') !!}</p>
             </div>
             <div class="footer-links">
-                <a href="{{ route('privacy') }}">Privacy Policy</a>
-                <a href="{{ route('support') }}">Support</a>
+                <a href="{{ route('privacy') }}">{{ __('Privacy Policy') }}</a>
+                <a href="{{ route('support') }}">{{ __('Support') }}</a>
+                @if (app()->getLocale() === 'pt_BR')
+                <a href="{{ url('/') }}" hreflang="en" lang="en">English</a>
+                @else
+                <a href="{{ url('/pt') }}" hreflang="pt-BR" lang="pt-BR">Português</a>
+                @endif
             </div>
-            <p class="footer-copy">&copy; {{ date('Y') }} Everly</p>
+            <p class="footer-copy">&copy; {{ date('Y') }} {{ __('Everly') }}</p>
         </div>
     </div>
 </footer>

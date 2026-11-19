@@ -1,10 +1,12 @@
 <?php
 
 use App\Http\Controllers\JoinController;
+use App\Http\Controllers\HomeController;
 use App\Http\Controllers\StoreLinkController;
 use Illuminate\Support\Facades\Route;
 
-Route::view('/', 'home')->name('home');
+Route::get('/', HomeController::class)->name('home');
+Route::get('pt', HomeController::class)->defaults('locale', 'pt_BR')->name('home.pt');
 
 // The guest invite page. Unauthenticated by design — the qr_code_token in the
 // URL is the credential, exactly as it is for the API's /api/upload/{token}.
