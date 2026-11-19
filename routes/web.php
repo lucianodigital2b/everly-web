@@ -4,7 +4,7 @@ use App\Http\Controllers\JoinController;
 use App\Http\Controllers\StoreLinkController;
 use Illuminate\Support\Facades\Route;
 
-Route::inertia('/', 'welcome')->name('home');
+Route::view('/', 'home')->name('home');
 
 // The guest invite page. Unauthenticated by design — the qr_code_token in the
 // URL is the credential, exactly as it is for the API's /api/upload/{token}.

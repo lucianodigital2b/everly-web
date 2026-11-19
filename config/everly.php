@@ -83,6 +83,11 @@ return [
     |
     */
 
+    'web' => [
+        // Adobe Fonts web project id for New Kansas on the landing page.
+        'adobe_fonts_kit' => env('ADOBE_FONTS_KIT'),
+    ],
+
     'analytics' => [
         'posthog_key' => env('POSTHOG_KEY', 'phc_JqPDRS6CSbUKx1UCw2ov870xYvU6R4ySMJGfWVDm3zt'),
         'posthog_host' => env('POSTHOG_HOST', 'https://us.i.posthog.com'),
