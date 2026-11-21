@@ -61,7 +61,7 @@ class AppServiceProvider extends ServiceProvider
         // The assistant is free for everyone, so this is what bounds the
         // DeepSeek bill: a burst cap and a daily cap per signed-in user.
         RateLimiter::for('chat', function (Request $request): array {
-            $key = (string) ($request->user()?->id ?? $request->ip());
+            $key = (string) ($request->user()->id ?? $request->ip());
 
             return [
                 Limit::perMinute(10)->by('chat-min:'.$key),

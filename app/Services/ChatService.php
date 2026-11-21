@@ -73,13 +73,11 @@ class ChatService
             'content' => $this->systemPrompt($language).$this->contextBlock($context),
         ]];
 
-        // Keep only the tail of the conversation, and only well-formed turns.
+        // Keep only the tail of the conversation. Roles and types are already
+        // validated by ChatController; drop turns that are only whitespace.
         $history = array_slice(array_values(array_filter(
             $messages,
-            fn ($m) => is_array($m)
-                && in_array($m['role'] ?? '', ['user', 'assistant'], true)
-                && is_string($m['content'] ?? null)
-                && trim($m['content']) !== ''
+            fn (array $m): bool => trim($m['content']) !== ''
         )), -self::MAX_HISTORY);
 
         foreach ($history as $message) {
@@ -240,12 +238,16 @@ class ChatService
             .' now say, believe them and say you have noted the change.';
     }
 
-    /** @return array<string,mixed> */
+    /**
+     * @param  array<string,mixed>  $from
+     * @return array<string,mixed>
+     */
     private function arr(array $from, string $key): array
     {
         return is_array($from[$key] ?? null) ? $from[$key] : [];
     }
 
+    /** @param  array<string,mixed>  $from */
     private function str(array $from, string $key): ?string
     {
         $value = $from[$key] ?? null;
