@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\CheckoutController;
 use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\GuestPackController;
@@ -63,4 +64,6 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('events/{event}/guest-packs/sync', [GuestPackController::class, 'sync']);
 
     Route::post('referrals/redeem', [ReferralController::class, 'redeem']);
+
+    Route::post('chat', [ChatController::class, 'send'])->middleware('throttle:chat');
 });

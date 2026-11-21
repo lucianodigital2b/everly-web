@@ -57,6 +57,17 @@ class AppServiceProvider extends ServiceProvider
         // The RevenueCat webhook is public; cap it per IP to blunt abuse while
         // staying well above any realistic legitimate delivery rate.
         RateLimiter::for('revenuecat-webhook', fn (Request $request): Limit => Limit::perMinute(120)->by($request->ip()));
+
+        // The assistant is free for everyone, so this is what bounds the
+        // DeepSeek bill: a burst cap and a daily cap per signed-in user.
+        RateLimiter::for('chat', function (Request $request): array {
+            $key = (string) ($request->user()?->id ?? $request->ip());
+
+            return [
+                Limit::perMinute(10)->by('chat-min:'.$key),
+                Limit::perDay(150)->by('chat-day:'.$key),
+            ];
+        });
     }
 
     /**

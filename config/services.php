@@ -67,4 +67,15 @@ return [
         'webhook_auth' => env('REVENUECAT_WEBHOOK_AUTH'),
     ],
 
+    // The in-app assistant (ChatService). V4 reasons before answering unless
+    // told not to, which made DailyHair's replies take 12-47 s and time out;
+    // with thinking disabled they come back in ~3 s.
+    'deepseek' => [
+        'base_url' => env('DEEPSEEK_BASE_URL', 'https://api.deepseek.com'),
+        'api_key' => env('DEEPSEEK_API_KEY'),
+        'model' => env('DEEPSEEK_MODEL', 'deepseek-v4-flash'),
+        'timeout' => (int) env('DEEPSEEK_TIMEOUT', 45),
+        'thinking' => env('DEEPSEEK_THINKING', 'disabled'),
+    ],
+
 ];
