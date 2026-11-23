@@ -6,17 +6,19 @@
 
 @section('content')
 <h1><span class="thin">Privacy</span><span class="bold">Policy.</span></h1>
-<p class="meta">Effective October 4, 2026</p>
+<p class="meta">Effective November 22, 2026</p>
 
-<p>Everly turns everyone's photos from an event into one shared album that opens when the host decides. This policy explains what we collect to make that work, who can see it, and how to delete it. Questions go to <a href="mailto:{{ $email }}">{{ $email }}</a>.</p>
+<p>Everly is a wedding planner, and it turns everyone's photos from an event into one shared album that opens when the host decides. This policy explains what we collect to make that work, who can see it, and how to delete it. Questions go to <a href="mailto:{{ $email }}">{{ $email }}</a>.</p>
 
 <h2>What we collect</h2>
 <ul>
   <li><strong>Host account.</strong> When you sign in with Apple we receive an Apple user identifier and, if you choose to share them, your name and email address (which may be an Apple private relay address). We also keep a token from Apple that is used only to revoke Everly's access when you delete your account.</li>
   <li><strong>Events you create.</strong> The event name, type, dates, reveal setting, shot limit, filter, guest allowance and cover photo.</li>
+  <li><strong>Your wedding plan.</strong> The couple's names, wedding date, checklist, notes, guest list (with RSVPs, menus and any contact details you type) and budget are stored only on your phone. They are not sent to our servers, except the summary described under "AI assistant". The Home Screen widget reads the same data on your phone.</li>
+  <li><strong>AI assistant.</strong> If you use the assistant and agree in the app, your messages and a summary of your plan (your first names, wedding date, counts and totals, never guest names or contact details) are sent through our servers to DeepSeek, a third-party AI provider, to generate the answer. We do not use them for anything else. Don't share sensitive personal information in the chat.</li>
   <li><strong>Photos.</strong> The photos taken or uploaded to an event, by the host and by guests, along with a thumbnail we generate and the time they were added.</li>
   <li><strong>Guests.</strong> Guests do not create an account. If a guest types a name, it is shown with their photos. Each guest's device gets a random token so we can count how many photos they have left; it does not identify the person.</li>
-  <li><strong>Purchases.</strong> Guest packs are paid through Apple. We never see your card or payment details. Our purchase processor, RevenueCat, receives the purchase record and your Everly user identifier so the pack can be credited to the right event.</li>
+  <li><strong>Purchases.</strong> Guest packs and the Everly Premium subscription are paid through Apple. We never see your card or payment details. Our purchase processor, RevenueCat, receives the purchase record and your Everly user identifier so the purchase can be credited to your account or event.</li>
   <li><strong>Analytics and attribution.</strong> We use PostHog to understand how the app and this website are used (for example, which screens or pages are opened, and which link brought you here) and AppsFlyer to measure which ads lead to installs. AppsFlyer only uses your device's advertising identifier if you allow tracking when iOS asks.</li>
   <li><strong>Technical data.</strong> Our servers record IP addresses in logs and use them to prevent abuse, such as too many uploads in a short time.</li>
 </ul>
@@ -34,7 +36,7 @@
 <p>Everly has no public feed. An event's photos are visible to its host. Guests see them only after the reveal, and only if the host chose to let everyone see every photo; otherwise each guest sees just the photos they took. Anyone with an event's QR code or invite link can join that event as a guest, so share it only with people you want there.</p>
 
 <h2>Who we share it with</h2>
-<p>Only the service providers that run Everly on our behalf: our hosting provider (servers and photo storage), Apple (sign-in and payments), RevenueCat (purchases), PostHog (analytics) and AppsFlyer (attribution). We may also disclose information if the law requires it.</p>
+<p>Only the service providers that run Everly on our behalf: our hosting provider (servers and photo storage), Apple (sign-in and payments), RevenueCat (purchases), DeepSeek (the AI assistant, only if you use it), PostHog (analytics) and AppsFlyer (attribution). We may also disclose information if the law requires it.</p>
 
 <h2>How long we keep it, and how to delete it</h2>
 <ul>
